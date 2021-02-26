@@ -1,0 +1,12 @@
+.IPPcode19
+DEFVAR GF@counter
+MOVE GF@counter string@counter\022obsahuje\032 # comm
+# comm asd sa das das d
+LABEL while
+JUMPIFEQ end GF@counter string@aaa
+WRITE string@counter\032obsahuje\032
+WRITE GF@counter
+WRITE string@\010
+CONCAT GF@counter GF@counter string@a
+JUMP while
+LABEL end
