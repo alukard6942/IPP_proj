@@ -6,9 +6,9 @@
  */
 ini_set("display_errors", "stderr");
 
-$GLOBALS["stats_file"] = null;
+$GLOBALS["stats_file"]      = null;
 $GLOBALS["stats_file_used"] = array();
-$GLOBALS["stats_file_t"] = null;
+$GLOBALS["stats_file_t"]    = null;
 $GLOBALS["lock"]     = 0;
 $GLOBALS["comments"] = 0;
 $GLOBALS["labels"]   = array();
@@ -18,7 +18,8 @@ $GLOBALS["backjumps"]= 0;
 $GLOBALS["badjumps"] = array();
 
 $GLOBALS["counter"]  = 0;
-$GLOBALS["line_n"] = 0;
+$GLOBALS["line_n"]   = 0;
+$GLOBALS["line_str"] = "\n";
 
 
 
@@ -45,7 +46,8 @@ function help (){
 function print_e( $err, $code = 0 ){
 
 	$line_n = $GLOBALS["line_n"];
-	fwrite(STDERR, "ERROR on line: $line_n\n");
+	$line_str = $GLOBALS["line_str"];
+	fwrite(STDERR, "ERROR line: $line_n\t$line_str");
 	fwrite(STDERR, "\t$err\n");
 
 	if ($code) exit($code);
@@ -259,6 +261,7 @@ echo ("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<program language=\"IPPcode21
 //body
 while($line = fgets(STDIN)){
 	$GLOBALS["line_n"]++;
+	$GLOBALS["line_str"] = $line;
 
 	// trim unimportant noise
    	$line = trim($line, "\n");

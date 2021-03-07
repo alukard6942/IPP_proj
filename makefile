@@ -20,3 +20,6 @@ errrs:
 
 pack1:
 	zip xkoval18.zip ./parser.php ./readme1.md
+
+clean:
+	rm xkoval18.zip
