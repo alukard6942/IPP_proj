@@ -5,6 +5,9 @@ PHP=php7.4
 simple:
 	$(PHP) parser.php < example.ippcode21
 
+test1:
+	python3 ./tester.py $(PHP) ./parser.php ./tests
+
 help:
 	$(PHP) parser.php --help
 
@@ -24,3 +27,4 @@ pack1:
 
 clean:
 	rm xkoval18.zip
+	rm ./output

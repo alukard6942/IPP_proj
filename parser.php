@@ -199,7 +199,7 @@ class Instruction {
 		case "var":
 			break;
 		default:
-			print_e("unsuported type $value",23);
+			print_e("unsuported type $type",23);
 		}
 
 		$this->print($type, $argum );
