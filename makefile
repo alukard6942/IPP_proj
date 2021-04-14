@@ -1,6 +1,9 @@
 
 PHP=php7.4
+PYTHON=python3
 
+interpreter: interpreter.py
+	$(PYTHON) interpreter.py
 
 simple:
 	$(PHP) parse.php < example.ippcode21
