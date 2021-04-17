@@ -2,9 +2,10 @@
 PHP=php7.4
 PYTHON=python3
 
+
 interpreter: interpreter.py
-	$(PHP) parse.php < ./complex.ippcode21 > example.xml
-	$(PYTHON) interpreter.py
+
+	cat complex.ippcode21 | $(PHP) parse.php | $(PYTHON) interpreter.py --input=./input.txt
 
 simple:
 	$(PHP) parse.php < example.ippcode21

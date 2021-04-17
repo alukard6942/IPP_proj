@@ -4,6 +4,8 @@ DEFVAR GF@counter
 MOVE GF@counter   string@ # Inicializace proměnné na prázdný řetězec
 # Jednoduchá iterace , dokud nebude splněna zadaná podmínka
 
+CREATEFRAME 
+
 DEFVAR TF@cunt
 
 MOVE TF@cunt string@hello
@@ -36,14 +38,14 @@ MOVE GF@counter string@
 CALL hello_word
 
 
-WRITE string@after\032calling\032hello_word\032
+WRITE string@after\032calling\032hello_word\010
 WRITE GF@counter
 WRITE string@\010
 
 
 
 PUSHS string@
-PUSHS string@hello\032word\010
+PUSHS string@hello\032word
 PUSHS int@0
 
 call trimo
@@ -55,16 +57,84 @@ POPS TF@index
 POPS TF@input
 POPS TF@output
 
-WRITE TF@index
+WRITE string@input:\010
 WRITE TF@input
+WRITE string@\010output\010
 WRITE TF@output
+WRITE string@\010
+
+
+WRITE string@read_example:\010----------------\010
+CALL READ_EXAMPLE
+WRITE string@----------------\010end_read_example:\010
+
 
 
 
 
 EXIT int@49
 
-# fc definiciotn 
+# ====================
+# ~~~~~~~~~~~~~~~~~~~~
+# | fc definiciotn   |
+# ~~~~~~~~~~~~~~~~~~~~
+# ====================
+
+
+# example function
+LABEL EMPTY_EXAMPLE_FC
+PUSHFRAME 
+CREATEFRAME 
+DEFVAR TF@INPUT
+
+
+POPFRAME 
+RETURN
+
+
+# read example
+LABEL READ_EXAMPLE
+PUSHFRAME 
+CREATEFRAME 
+
+	DEFVAR TF@buffer
+
+	LABEL eachline
+
+		READ TF@buffer string
+		WRITE TF@buffer
+
+	JUMPIFNEQ eachline TF@buffer nil@nil
+
+POPFRAME 
+RETURN
+
+# stri2int example
+LABEL reverse_from_ord
+PUSHFRAME 
+CREATEFRAME 
+DEFVAR TF@input
+POPS TF@input
+	
+	DEFVAR TF@ord
+	DEFVAR TF@len
+	STRLEN TF@len TF@input
+
+	LABEL while123
+
+		SUB TF@len TF@len int@1
+
+		STRI2INT TF@ord TF@input TF@len
+		
+		INT2CHAR TF@ord TF@ord
+
+		WRITE TF@ord
+
+
+	JUMPIFNEQ while123 TF@len int@0
+
+POPFRAME 
+RETURN
 
 
 # trim char o from string 
@@ -78,33 +148,28 @@ DEFVAR TF@output
 POPS TF@index
 POPS TF@input
 POPS TF@output
-WRITE string@newcall\032
-WRITE TF@index
-WRITE TF@input
-WRITE TF@output
-
 	
 	# if index in input: return 
 	DEFVAR TF@len 
 	STRLEN TF@len TF@input 
+
 	LT TF@len TF@index TF@len 
+
 	JUMPIFNEQ outofbouds  TF@len bool@true 
 
 		# if input[i]  != o: output.append(imput[o])
-
 		DEFVAR TF@CHAR 
-		STRI2INT TF@CHAR TF@input TF@index
-
+		GETCHAR TF@CHAR TF@input TF@index
 		JUMPIFEQ noofound TF@CHAR string@o
 			
 			CONCAT TF@output TF@output TF@CHAR 
 
 		LABEL noofound 
 		
-
-		# recurive call
-
+		# index++
 		ADD TF@index TF@index int@1 
+		
+		# recurive call
 		PUSHS TF@output
 		PUSHS TF@input
 		PUSHS TF@index
