@@ -1,12 +1,152 @@
 .IPPcode21
 DEFVAR GF@counter
+# prazdny retezec
 MOVE GF@counter   string@ # Inicializace proměnné na prázdný řetězec
 # Jednoduchá iterace , dokud nebude splněna zadaná podmínka
+
+DEFVAR TF@cunt
+
+MOVE TF@cunt string@hello
+
+
+# while loop
 LABEL while
-JUMPIFEQ end GF@counter string@aaa
+
+	# until filed 3as
+	STRLEN TF@cunt GF@counter
+
+	JUMPIFEQ end TF@cunt int@20	
+
+	# output
+	WRITE GF@counter
+	WRITE string@a\010
+
+	# append
+	CONCAT GF@counter GF@counter string@a
+
+JUMP while
+
+LABEL end
 WRITE string@Proměnná\032GF@counter\032obsahuje\032
 WRITE GF@counter
+WRITE string@a\010
+
+MOVE GF@counter string@
+
+CALL hello_word
+
+
+WRITE string@after\032calling\032hello_word\032
+WRITE GF@counter
 WRITE string@\010
-CONCAT GF@counter GF@counter string@a
-JUMP while
-LABEL end
+
+
+
+PUSHS string@
+PUSHS string@hello\032word\010
+PUSHS int@0
+
+call trimo
+
+DEFVAR TF@index
+DEFVAR TF@input
+DEFVAR TF@output
+POPS TF@index
+POPS TF@input
+POPS TF@output
+
+WRITE TF@index
+WRITE TF@input
+WRITE TF@output
+
+
+
+
+EXIT int@49
+
+# fc definiciotn 
+
+
+# trim char o from string 
+LABEL trimo
+PUSHFRAME 
+CREATEFRAME 
+	
+DEFVAR TF@input 
+DEFVAR TF@index 
+DEFVAR TF@output 
+POPS TF@index
+POPS TF@input
+POPS TF@output
+WRITE string@newcall\032
+WRITE TF@index
+WRITE TF@input
+WRITE TF@output
+
+	
+	# if index in input: return 
+	DEFVAR TF@len 
+	STRLEN TF@len TF@input 
+	LT TF@len TF@index TF@len 
+	JUMPIFNEQ outofbouds  TF@len bool@true 
+
+		# if input[i]  != o: output.append(imput[o])
+
+		DEFVAR TF@CHAR 
+		STRI2INT TF@CHAR TF@input TF@index
+
+		JUMPIFEQ noofound TF@CHAR string@o
+			
+			CONCAT TF@output TF@output TF@CHAR 
+
+		LABEL noofound 
+		
+
+		# recurive call
+
+		ADD TF@index TF@index int@1 
+		PUSHS TF@output
+		PUSHS TF@input
+		PUSHS TF@index
+
+		call trimo
+
+		POPS TF@index
+		POPS TF@input
+		POPS TF@output
+	
+	LABEL outofbouds 
+
+
+PUSHS TF@output
+PUSHS TF@input
+PUSHS TF@index
+POPFRAME 
+RETURN
+
+# hello word 
+LABEL hello_word
+PUSHFRAME
+CREATEFRAME
+	
+	# append
+	CONCAT GF@counter GF@counter string@a
+	
+	# until filed 3as
+	DEFVAR TF@cunt
+	STRLEN TF@cunt GF@counter
+
+	JUMPIFEQ basecase TF@cunt int@4
+		CALL hello_word
+	LABEL basecase
+
+POPFRAME 
+RETURN
+
+
+
+
+
+
+
+

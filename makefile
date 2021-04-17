@@ -3,6 +3,7 @@ PHP=php7.4
 PYTHON=python3
 
 interpreter: interpreter.py
+	$(PHP) parse.php < ./complex.ippcode21 > example.xml
 	$(PYTHON) interpreter.py
 
 simple:

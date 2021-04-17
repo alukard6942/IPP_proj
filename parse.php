@@ -107,7 +107,7 @@ while($line = fgets(STDIN)){
 			$GLOBALS["comments"]++;
 		}
     }
-    if ( $line == "") continue;
+    if ( trim($line) == "") continue;
 
     // check corrent header
     if ($counter == 0) {

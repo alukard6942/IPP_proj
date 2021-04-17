@@ -99,8 +99,8 @@ class Instruction {
 			break;
 		case "bool":
 			$argum = strtolower($argum);
-			if ($argum != "true" || $argum != "false"){
-				print_e("bool can be only true or false", 23);
+			if ($argum != "true" && $argum != "false"){
+				print_e("wrong arg: $argum bool can be only true or false", 23);
 			}
 			break;
 		case "int":
