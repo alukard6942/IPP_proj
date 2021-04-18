@@ -3,7 +3,7 @@
 # File: interpreter.py
 # Author: alukard <alukard6942@github>
 # Date: 13.04.2021
-# Last Modified Date: 13.04.2021
+# Last Modified Date: 18.04.2021
 
 import xml.etree.ElementTree as ET
 import re
@@ -11,173 +11,131 @@ import sys
 
 
 
-# GLOBAL VARS
-# extern
-# GLBtable = object()
-
-
+tableerrptr = None
 def err(msg="general err", code=0):
 
-    print("line: " + str(table.Line) + " : ERROR")
     try:
-        print( table.Prog[table.Line] )
+        sys.stderr.write(f"line: {tableerrptr.Line}   ERROR {code}\n")
+        sys.stderr.write(f"{tableerrptr.Prog[tableerrptr.Line]} \n")
+        # print(tableerrptr)
     except Exception as e:
         pass
-    print(msg)
+    sys.stderr.write(f"{msg} \n")
 
     if code: exit(code)
 
 
 
+def main():
 
-class Table:
+    table = Table()
+    global tableerrptr
+    tableerrptr = table
 
-    Line = 1
-    exCode = 0
+    # parse args
+    xmlfile = None
+    stdfile = None
+    for ar in sys.argv[1:]:
+    
+        if ar == "--help":
+            print(""" python3 interpreter.py [OPTION]
 
-    Prog = dict()
-    Labels = dict()
-    ToReturn = []
-    MemStack = []
-
-    globalVars = dict()
-    localVars = dict()
-    tempVars = None
-
-    stack = []
-
-    stdfile = sys.stdin
-
-
-    def createFrame(self):
-        """ Vytvoří nový dočasný rámec a zahodí případný obsah původního dočasného rámce. """
-        self.tempVars = dict()
-
-
-    def pushFrame(self):
-        if table.tempVars != None: 
-            self.stack.insert(0, self.tempVars)
+ options:
+==========
+ --version -v    | version
+ --help -h       | show this help
+ --source=file   | vstupní soubor s XML reprezentací zdrojového kódu
+ --input=file    | soubor se vstupy pro samotnou interpretaci zadaného zdrojového kódu""")
+            exit(0)
+    
+        elif ar[:9] == "--source=":
+            xmlfile = str(ar[9:])
+        
+        elif ar[:8] == "--input=":
+            stdfile = str(ar[8:])
+    
         else:
-            err("Pokus o přístup k nedefinovanému rámci vede na chybu", 55)
+            err(f"unsuported OPTION: {ar}", 10)
+    
+    if not xmlfile and not stdfile:
+        err(" Alespoň jeden z parametrů (--source nebo --input) musí být vždy zadán. Pokud jeden z nich chybí, jsou chybějící data načítána ze standardního vstupu", 10 )
+    
+    elif not xmlfile:
+        xmlfile = sys.stdin
+    
+    elif not stdfile:
+        xmlfile = sys.stdin
+    
+    
+    try:
+        xml = ET.parse(xmlfile)
+    except Exception as e:
+        err(f"xml file {xmlfile} failed to parse", 31)
+    
+    program = None
+    try:
+        table.stdfile = open(stdfile, "r" ) 
+    
+    
+        program = xml.getroot()
+        if program.tag != "program" :
+            err("root is to be \"<program>\"", 31)
+        if program.attrib["language"].lower() != "ippcode21" :
+            err("language is supose to be ippcode21", 31)
 
-    def popFrame(self):
-        try:
-            self.tempVars = self.stack.pop(0)
-        except Exception as e:
-            err("Pokus o přístup k nedefinovanému rámci vede na chybu", 55)
+    except Exception as e:
+        err(f"bad file {stdfile}", 11)
+    
+    
+    order = 0
+    maxim = 0
+    for data in program :
+        order =  int (data.attrib["order"])
+        table.Line = order
+        if (maxim < order): maxim = order
+    
+        if order in table.Prog:
+            err(" unclear order", 31)
+    
+        
+        opcode =  data.attrib["opcode"]
+        table.append(order, opcode, data)
+    
+    # check if no numbers are minssing
+    if order != len(table.Prog):
+        err("program mised a step")
+    
+    
+    table.Line = 0
+    while (table.Line <= len(table)):
+    
+        if table.Line in table.Prog:
+            inst = table.Prog[table.Line]
+    
+            try:
+                inst.run()
+            except Exception as e:
+                err(e, 32)
+                inst.jumpend()
+    
+        table.Line += 1
+    
+    table.stdfile.close()
+    exit(table.exCode)
     
 
-    def isGlobal(self, var):
-        if re.search("^GF@.*$", var):
-            return True
-        else:
-            return False
 
-    def isLocal(self, var):
-        if re.search("^LF@.*$", var):
-            return True
-        else:
-            return False
-
-    def defVar(self, var):
-
-        if self.isGlobal(var):
-            frame = self.globalVars
-        elif self.isLocal(var):
-            frame = self.localVars
-        elif self.tempVars != None:
-            frame = self.tempVars
-        else:
-            frame = None
-            err("Pokus o přístup k nedefinovanému rámci vede na chybu", 55)
-
-        if var[3:] in frame:
-            err(f"var {var} does exit", 60)
-
-        frame[var[3:]] = "nil@nil"
-
-    def __setitem__(self, var, val):
-
-        var_t  = var
-        var  = var[3:]
-
-        if self.isGlobal(var_t):
-            if var not in self.globalVars:
-                err(f"{var_t} not a gloval var", 1)
-            self.globalVars[var] = val
-
-        elif self.isLocal(var_t):
-            if var not in self.localVars:
-                err(f"{var_t} not a local var", 1)
-            self.localVars[var] = val
-
-        else: 
-            if var not in self.tempVars:
-                err(f"{var_t} not a temp var", 1)
-            self.tempVars[var] = val
-            
-
-    def __getitem__(self, var):
-        var_t  = var
-        var  = var[3:]
-
-        #print (var)
-
-        if self.isGlobal(var_t):
-            if var not in self.globalVars:
-                err(f"{var_t} not a gloval var", 1)
-            return self.globalVars[var] 
-
-        if self.isLocal(var_t):
-            if var not in self.localVars:
-                err(f"{var_t} not a local var", 1)
-            return self.localVars[var]
-
-        else: 
-            if var not in self.tempVars:
-                err(f"{var_t} not a temp var", 1)
-            return self.tempVars[var]
-
-    def __str__(self):
-
-        def rep(elm, i):
-            return str(i) + ": "+ str(elm[i]) + "\n"
-
-        out = "LINE: " + str(self.Line) + "\n"
-
-        out += "TABLE\n-----------\n"
-        for i in self.globalVars:
-            out += rep(self.globalVars, i)
-        for i in self.localVars:
-            out += rep(self.localVars, i)
-        for i in self.tempVars:
-            out += rep(self.tempVars, i)
-        for stac in self.stack :
-            for i in stac:
-                out += rep(stac, i)
-
-        out += "LABELS\n-------------\n"
-        for i in self.Labels:
-            out+= i + ": " + str(self.Labels[i]) + "\n"
-
-        out += "heap\n-------------------\n"
-        for i in self.ToReturn:
-           out+= str(i) + "\n"
-        out += "-------------------\n"
-
-
-        return out
-table = Table()
 
 class Argument:
 
-    def __init__(self, data):
+    def __init__(self, data, table):
+        self.table = table
         self.text = data.text
         self.typ = data.attrib["type"]
 
     def var(self):
         if self.typ != "var":
-            err(f"internal err err supose to be var instad {self.type}", 69)
+            err(f"internal err err supose to be var instad {self.type}", 31)
 
         return self.text
 
@@ -204,7 +162,7 @@ class Argument:
 
     def symbol(self):
         if self.typ == "var":
-            return table[ self.text ]
+            return self.table[ self.text ]
 
         elif self.typ == "string" and not self.text:
             return "nil@nil"
@@ -228,7 +186,7 @@ class Argument:
     def __int__(self):
         val = self.symbol()
         if self.type() != "int":
-            err(f"{val} is definatly not int", 69)
+            err(f"{val} is definatly not int", 53)
 
         val = int(val[4:])
         return val
@@ -263,7 +221,7 @@ class Argument:
         elif typ == "bool@":
             return not bool(self) and bool(to)
         else:
-            err(f"internal err worng type {typ}", 69)
+            err(f"internal err worng type {typ}", 31)
 
     def __eq__(self, to):
         return str(self.symbol()) == str(to.symbol())
@@ -271,14 +229,15 @@ class Argument:
     def __bool__(self):
         val = self.symbol()
         if val[:5] != "bool@":
-            err(f"{val} is definatly not booleon", 69)
+            err(f"{val} is definatly not booleon", 53)
 
         return val == "bool@true"
 
 
 class Instruction: 
     
-    def __init__(self, data):
+    def __init__(self, data, table):
+        self.table = table
         self.data = data
         self.opcode = data.attrib["opcode"]
         self.__argumentrec = [0]
@@ -286,14 +245,14 @@ class Instruction:
     def arg(self, i,):
         self.__argumentrec.append(i)
         i -= 1
-        return Argument(self.data[i])
+        return Argument(self.data[i], self.table)
 
     def jump(self, label):
-        if type(label) == int: table.Line = label
-        else: table.Line = table.Labels[label]
+        if type(label) == int: self.table.Line = label
+        else: self.table.Line = self.table.Labels[label]
 
     def jumpend(self):
-        table.Line = len(table.Prog)
+        self.table.Line = len(self.table)
 
     def run(self):
         self.exe()
@@ -301,13 +260,13 @@ class Instruction:
         argn = len(self.data)
         armax = max(self.__argumentrec)
         if argn != armax:
-            err(f" {self.opcode}: namber of arguments given {armax} is wrong", 69)
+            err(f" {self.opcode}: namber of arguments given {armax} is wrong", 31)
 
     def exe(self):
         print(f"todo .exe() for {self.opcode}")
 
     def __str__(self):
-        return str(table.Line) + self.opcode
+        return str(self.table.Line) + self.opcode
 
 
 ## ========================================
@@ -320,118 +279,118 @@ class Instruction:
 class MOVE(Instruction):
     """ move val from arg2 to arg1 """
     def exe(self):
-        table[self.arg(1).var()] = self.arg(2).symbol()
+        self.table[self.arg(1).var()] = self.arg(2).symbol()
 
 class CREATEFRAME(Instruction):
     """ Vytvoří nový dočasný rámec a zahodí případný obsah původního dočasného rámce. """
     def exe(self):
-        table.createFrame()
+        self.table.createFrame()
 
 class PUSHFRAME (Instruction):
     """ Přesuň TF na zásobník rámců. Rámec bude k dispozici přes LF a překryje původní rámce na zásobníku rámců. TF bude po provedení instrukce nedefinován a je třeba jej před dalším použitím vytvořit pomocí CREATEFRAME. Pokus o přístup k nedefinovanému rámci vede na chybu 55. """
     def exe(self):
-        table.pushFrame()
+        self.table.pushFrame()
 
 class  POPFRAME (Instruction):
     """ coment """
     def exe(self):
-        table.popFrame()
+        self.table.popFrame()
 
 class DEFVAR(Instruction):
     """ move val from arg2 to arg1 """
     def exe(self):
-        table.defVar( self.arg(1).var() )
+        self.table.defVar( self.arg(1).var() )
 
 class CALL (Instruction):
     """ Uloží inkrementovanou aktuální pozici z interního čítače instrukcí do zásobníku volání a provede skok na zadané návěští (případnou přípravu rámce musí zajistit jiné instrukce). """
     def exe(self):
-        table.ToReturn.insert(0, table.Line)
+        self.table.ToReturn.insert(0, self.table.Line)
         self.jump( self.arg(1).label())
 
 
 class RETURN (Instruction):
     """ Vyjme pozici ze zásobníku volání a skočí na tuto pozici nastavením interního čítače instrukcí (úklid lokálních rámců musí zajistit jiné instrukce). Provedení instrukce při prázdném zásobníku volání vede na chybu 56. """
     def exe(self):
-        line = table.ToReturn.pop(0)
+        line = self.table.ToReturn.pop(0)
         self.jump(line)
 
 
 class PUSHS (Instruction):
     """ Uloží hodnotu ⟨symb⟩ na datový zásobník. """
     def exe(self):
-        table.MemStack.insert(0, self.arg(1).symbol() )
+        self.table.MemStack.insert(0, self.arg(1).symbol() )
 
 
 class POPS (Instruction):
     """ Není-li zásobník prázdný, vyjme z něj hodnotu a uloží ji do proměnné ⟨var⟩, jinak dojde k chybě 56. """
     def exe(self):
-        table[self.arg(1).var()] = table.MemStack.pop(0)
+        self.table[self.arg(1).var()] = self.table.MemStack.pop(0)
 
 
 class ADD(Instruction):
     """ Sečte ⟨symb 1 ⟩ a ⟨symb 2 ⟩ (musí být typu int) a výslednou hodnotu téhož typu uloží do proměnné ⟨var⟩."""
     def exe(self):
-        table[self.arg(1).var()] = "int@"+ str(int(self.arg(2)) + int(self.arg(3)))
+        self.table[self.arg(1).var()] = "int@"+ str(int(self.arg(2)) + int(self.arg(3)))
 
 class SUB(Instruction):
     """ Sečte ⟨symb 1 ⟩ a ⟨symb 2 ⟩ (musí být typu int) a výslednou hodnotu téhož typu uloží do proměnné ⟨var⟩."""
     def exe(self):
-        table[self.arg(1).var()] = "int@"+ str(int(self.arg(2)) - int(self.arg(3)))
+        self.table[self.arg(1).var()] = "int@"+ str(int(self.arg(2)) - int(self.arg(3)))
 
 class MUL(Instruction):
     """ Sečte ⟨symb 1 ⟩ a ⟨symb 2 ⟩ (musí být typu int) a výslednou hodnotu téhož typu uloží do proměnné
     def exe(self):
 ⟨var⟩."""
     def exe(self):
-        table[self.arg(1).var()] = "int@"+ str(int(self.arg(2)) * int(self.arg(3)))
+        self.table[self.arg(1).var()] = "int@"+ str(int(self.arg(2)) * int(self.arg(3)))
 
 class IDIV(Instruction):
     """ Celočíselně podělí celočíselnou hodnotu ze ⟨symb 1 ⟩ druhou celočíselnou hodnotou ze ⟨symb 2 ⟩ (musí být oba typu int) a výsledek typu int přiřadí do proměnné ⟨var⟩. Dělení nulou způsobí chybu 57."""
     def exe(self):
         zero = int(self.arg(3))
         if zero == 0: err("division by zero", 57)
-        table[self.arg(1).var()] = "int@"+ str(int(self.arg(2)) / zero)
+        self.table[self.arg(1).var()] = "int@"+ str(int(self.arg(2)) / zero)
 
 class LT (Instruction):
     """ Instrukce vyhodnotí relační operátor mezi ⟨symb 1 ⟩ a ⟨symb 2 ⟩ (stejného typu; int, bool nebo string) a do ⟨var⟩ zapíše výsledek typu bool (false při neplatnosti nebo true v případě platnosti odpovídající relace). Řetězce jsou porovnávány lexikograficky a false je menší než true. Pro výpočet neostrých nerovností lze použít AND/OR/NOT. S operandem typu nil (další zdrojový operand je libovolného typu) lze porovnávat pouze instrukcí EQ, jinak chyba 53"""
     def exe(self):
-        table[self.arg(1).var()] = "bool@"+ str( self.arg(2) < self.arg(3)).lower()
+        self.table[self.arg(1).var()] = "bool@"+ str( self.arg(2) < self.arg(3)).lower()
 
 class GT (Instruction):
     """ Instrukce vyhodnotí relační operátor mezi ⟨symb 1 ⟩ a ⟨symb 2 ⟩ (stejného typu; int, bool nebo string) a do ⟨var⟩ zapíše výsledek typu bool (false při neplatnosti nebo true v případě platnosti odpovídající relace). Řetězce jsou porovnávány lexikograficky a false je menší než true. Pro výpočet neostrých nerovností lze použít AND/OR/NOT. S operandem typu nil (další zdrojový operand je libovolného typu) lze porovnávat pouze instrukcí EQ, jinak chyba 53"""
     def exe(self):
-        table[self.arg(1).var()] = "bool@"+ str( self.arg(3) < self.arg(2)).lower()
+        self.table[self.arg(1).var()] = "bool@"+ str( self.arg(3) < self.arg(2)).lower()
 
 class EQ (Instruction):
     """ Instrukce vyhodnotí relační operátor mezi ⟨symb 1 ⟩ a ⟨symb 2 ⟩ (stejného typu; int, bool nebo string) a do ⟨var⟩ zapíše výsledek typu bool (false při neplatnosti nebo true v případě platnosti odpovídající relace). Řetězce jsou porovnávány lexikograficky a false je menší než true. Pro výpočet neostrých nerovností lze použít AND/OR/NOT. S operandem typu nil (další zdrojový operand je libovolného typu) lze porovnávat pouze instrukcí EQ, jinak chyba 53"""
     def exe(self):
-        table[self.arg(1).var()] = "bool@"+ str( self.arg(1) == self.arg(2) ).lower()
+        self.table[self.arg(1).var()] = "bool@"+ str( self.arg(1) == self.arg(2) ).lower()
 
 class AND(Instruction):
     """ Aplikuje konjunkci (logické A)/disjunkci (logické NEBO) na operandy typu bool ⟨symb 1 ⟩ a ⟨symb 2 ⟩ nebo negaci na ⟨symb 1 ⟩ (NOT má pouze 2 operandy) a výsledek typu bool zapíše do ⟨var⟩."""
     def exe(self):
-        table[self.arg(1).var()] = "bool@"+ str(bool(self.arg(2)) and bool(self.arg(3))).lower()
+        self.table[self.arg(1).var()] = "bool@"+ str(bool(self.arg(2)) and bool(self.arg(3))).lower()
 
 class OR (Instruction):
     """ Aplikuje konjunkci (logické A)/disjunkci (logické NEBO) na operandy typu bool ⟨symb 1 ⟩ a ⟨symb 2 ⟩ nebo negaci na ⟨symb 1 ⟩ (NOT má pouze 2 operandy) a výsledek typu bool zapíše do ⟨var⟩."""
     def exe(self):
-        table[self.arg(1).var()] = "bool@"+ str(bool(self.arg(2)) and bool(self.arg(3))).lower()
+        self.table[self.arg(1).var()] = "bool@"+ str(bool(self.arg(2)) and bool(self.arg(3))).lower()
 
 class NOT(Instruction):
     """ Aplikuje konjunkci (logické A)/disjunkci (logické NEBO) na operandy typu bool ⟨symb 1 ⟩ a ⟨symb 2 ⟩ nebo negaci na ⟨symb 1 ⟩ (NOT má pouze 2 operandy) a výsledek typu bool zapíše do ⟨var⟩."""
     def exe(self):
-        table[self.arg(1).var()] = "bool@"+ str(not bool(self.arg(2))).lower()
+        self.table[self.arg(1).var()] = "bool@"+ str(not bool(self.arg(2))).lower()
 
 class INT2CHAR (Instruction):
     """Číselná hodnota ⟨symb⟩ je dle Unicode převedena na znak, který tvoří jednoznakový řetězec přiřazený do ⟨var⟩. Není-li ⟨symb⟩ validní ordinální hodnota znaku v Unicode (viz funkce chr v Python 3), dojde k chybě 58. """
     def exe(self):
-        table[self.arg(1).var()] = "string@" + chr(self.arg(2).__int__())
+        self.table[self.arg(1).var()] = "string@" + chr(self.arg(2).__int__())
 
 class STRI2INT (Instruction):
     """Do ⟨var⟩ uloží ordinální hodnotu znaku (dle Unicode) v řetězci ⟨symb 1 ⟩ na pozici ⟨symb 2 ⟩ (indexováno od nuly). Indexace mimo daný řetězec vede na chybu 58. Viz funkce ord v Python 3 """
     def exe(self):
         try:
-            table[self.arg(1).var()] = "int@" + str(ord( str(self.arg(2))[ int(self.arg(3)) ] ))
+            self.table[self.arg(1).var()] = "int@" + str(ord( str(self.arg(2))[ int(self.arg(3)) ] ))
         except Exception as e:
             err(" Indexace mimo daný řetězec vede na chybu 58. Viz funkce ord v Python 3.", 58)
 
@@ -442,7 +401,7 @@ class READ(Instruction):
         val = "nil@nil"
 
         try:
-            data = table.stdfile.readline()
+            data = self.table.stdfile.readline()
 
             if typ == "bool":
                 if data.lower() == "true":
@@ -458,7 +417,7 @@ class READ(Instruction):
         except Exception as e:
             val = "nil@nil"
 
-        table[self.arg(1).var()] = val
+        self.table[self.arg(1).var()] = val
 
 class WRITE(Instruction):
     """ Vypíše hodnotu ⟨symb⟩ na standardní výstup. Až na typ bool a hodnotu nil@nil je formát výpisu kompatibilní s příkazem print jazyka Python 3 s doplňujícím parametrem end='' (za-mezí dodatečnému odřádkování). Pravdivostní hodnota se vypíše jako true a nepravda jako false. Hodnota nil@nil se vypíše jako prázdný řetězec """
@@ -473,24 +432,24 @@ class WRITE(Instruction):
         elif typ == "string":
             print( str(arg), end="" )
         else:
-            err(f"unsuported type: {typ}", 69)
+            err(f"unsuported type: {typ}", 31)
         
 class CONCAT(Instruction):
     """ Do proměnné ⟨var⟩ uloží řetězec vzniklý konkatenací dvou řetězcových operandů ⟨symb 1 ⟩ a ⟨symb 2 ⟩ (jiné typy nejsou povoleny). """
     def exe(self):
-        table[self.arg(1).var()] = "string@" + str(self.arg(2)) + str(self.arg(3))
+        self.table[self.arg(1).var()] = "string@" + str(self.arg(2)) + str(self.arg(3))
 
 class STRLEN(Instruction):
     """ coment """
     def exe(self):
-        table[self.arg(1).var()] = "int@" + str(len(str(self.arg(2))))
+        self.table[self.arg(1).var()] = "int@" + str(len(str(self.arg(2))))
 
 
 class GETCHAR(Instruction):
     """ Do ⟨var⟩ uloží řetězec z jednoho znaku v řetězci ⟨symb 1 ⟩ na pozici ⟨symb 2 ⟩ (indexováno celým číslem od nuly). Indexace mimo daný řetězec vede na chybu 58."""
     def exe(self):
         try:
-            table[self.arg(1).var()] = "string@" + str(self.arg(2))[int(self.arg(3))]
+            self.table[self.arg(1).var()] = "string@" + str(self.arg(2))[int(self.arg(3))]
         except Exception as e:
             err("Indexace mimo daný řetězec vede na chybu", 58)
 
@@ -499,28 +458,28 @@ class SETCHAR(Instruction):
     def exe(self):
         try:
             # variable[ arg1 ] = arg2
-            tomod = table[self.arg(1).var()] 
-            table[self.arg(1).var()] = tomod[self.arg(2)] = self.arg(3).__str__()[0] 
+            tomod = self.table[self.arg(1).var()] 
+            self.table[self.arg(1).var()] = tomod[self.arg(2)] = self.arg(3).__str__()[0] 
         except Exception as e:
             err("Indexace mimo daný řetězec vede na chybu", 58)
 
 class TYPE(Instruction):
     """Dynamicky zjistí typ symbolu ⟨symb⟩ a do ⟨var⟩ zapíše řetězec značící tento typ (int, bool, string nebo nil). Je-li ⟨symb⟩ neinicializovaná proměnná, označí její typ prázdným řetězcem."""
     def exe(self):
-        table[self.arg(1).var()] = self.arg(2).type()
+        self.table[self.arg(1).var()] = "string@" + self.arg(2).type()
 
 
 class LABEL(Instruction):
     """ Speciální instrukce označující pomocí návěští ⟨label⟩ důležitou pozici v kódu jako potenciální cíl libovolné skokové instrukce. Pokus o vytvoření dvou stejně pojmenovaných návěští na různých místech programu je chybou 52. """
-    def __init__ (self, data): 
-        super().__init__(data)
+    def __init__ (self, data, table): 
+        super().__init__(data, table)
         lable= self.arg(1).label()
-        if lable in table.Labels:
+        if lable in self.table.Labels:
             err(f"lable: {lable} already exists", 52)
-        table.Labels[ lable ] = table.Line
+        self.table.Labels[ lable ] = self.table.Line
 
     def exe(self):
-        pass
+        tmp = self.arg(1).label()
     
 
 class JUMP(Instruction):
@@ -544,7 +503,7 @@ class EXIT (Instruction):
     """ coment """
     def exe(self):
         code = self.arg(1).__int__()
-        if not 0 < code < 50: err("Nevalidní celočíselná hodnota {code} vede na chybu", 57)
+        if not 0 <= code < 50: err(f"Nevalidní celočíselná hodnota {code} vede na chybu", 57)
         exit(code)
 
 
@@ -557,158 +516,216 @@ class DPRINT(Instruction):
 class BREAK (Instruction):
     """Předpokládá se, že na standardní chybový výstup (stderr) vypíše stav interpretu (např. pozice v kódu, obsah rámců, počet vykonaných instrukcí) v danou chvíli (tj. během vykonávání této instrukce)."""
     def exe(self):
-        sys.stderr.write( str(table) )
-
-        
-
-
-# fuckn helll this shit is so not optimal it hurts
-def get(op, data):
-    try:
-        if   op == "MOVE":          return MOVE(data)
-        elif op == "LABEL":         return LABEL(data)
-        elif op == "CREATEFRAME":   return CREATEFRAME(data)
-        elif op == "PUSHFRAME":     return PUSHFRAME(data)
-        elif op == "POPFRAME":      return POPFRAME(data)
-        elif op == "DEFVAR":        return DEFVAR(data)
-        elif op == "CALL":          return CALL(data)
-        elif op == "RETURN":        return RETURN(data)
-        elif op == "PUSHS":         return PUSHS(data)
-        elif op == "POPS":          return POPS(data)
-        elif op == "ADD":           return ADD(data)
-        elif op == "SUB":           return SUB(data)
-        elif op == "MUL":           return MUL(data)
-        elif op == "IDIV":          return IDIV(data)
-        elif op == "LT":            return LT(data)
-        elif op == "GT":            return GT(data)
-        elif op == "EQ":            return EQ(data)
-        elif op == "AND":           return AND(data)
-        elif op == "OR":            return OR(data)
-        elif op == "NOT":           return NOT(data)
-        elif op == "INT2CHAR":      return INT2CHAR(data)
-        elif op == "STRI2INT":      return STRI2INT(data)
-        elif op == "READ":          return READ(data)
-        elif op == "WRITE":         return WRITE(data)
-        elif op == "CONCAT":        return CONCAT(data)
-        elif op == "STRLEN":        return STRLEN(data)
-        elif op == "GETCHAR":       return GETCHAR(data)
-        elif op == "SETCHAR":       return SETCHAR(data)
-        elif op == "TYPE":          return TYPE(data)
-        elif op == "JUMP":          return JUMP(data)
-        elif op == "JUMPIFEQ":      return JUMPIFEQ (data)
-        elif op == "JUMPIFNEQ":     return JUMPIFNEQ (data)
-        elif op == "EXIT":          return EXIT (data)
-        elif op == "DPRINT":        return DPRINT (data)
-        elif op == "BREAK":         return BREAK (data)
-    except Exception as e:
-        return Instruction(data)
+        sys.stderr.write( str(self.table) )
 
 
 
+class Table:
 
-# ===============================================================
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ===============================================================
-#                   MAIN
-# 
-# def main(): je prilis nepythonovska a uprimne jesem lepsinez ty
-# ===============================================================
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ===============================================================
+    Line = 1
+    exCode = 0
+
+    Prog = dict()
+    Labels = dict()
+    ToReturn = []
+    MemStack = []
+
+    globalVars = dict()
+    localVars = dict()
+    tempVars = None
+
+    stack = []
+
+    stdfile = sys.stdin
+
+    def append(self, order, op, data):
+        if order in self.Prog: 
+            err("unclear order of instructions", 31)
+        self.Prog[order] = self.__get(op, data)
+
+    # fuckn helll this shit is so not optimal it hurts
+    def __get(self, op, data):
+        try:
+            if   op == "MOVE":          return MOVE(data, self)
+            elif op == "LABEL":         return LABEL(data , self )
+            elif op == "CREATEFRAME":   return CREATEFRAME(data, self )
+            elif op == "PUSHFRAME":     return PUSHFRAME(data, self )
+            elif op == "POPFRAME":      return POPFRAME(data, self )
+            elif op == "DEFVAR":        return DEFVAR(data, self )
+            elif op == "CALL":          return CALL(data, self )
+            elif op == "RETURN":        return RETURN(data, self )
+            elif op == "PUSHS":         return PUSHS(data, self )
+            elif op == "POPS":          return POPS(data, self )
+            elif op == "ADD":           return ADD(data, self )
+            elif op == "SUB":           return SUB(data, self )
+            elif op == "MUL":           return MUL(data, self )
+            elif op == "IDIV":          return IDIV(data, self )
+            elif op == "LT":            return LT(data, self )
+            elif op == "GT":            return GT(data, self )
+            elif op == "EQ":            return EQ(data, self )
+            elif op == "AND":           return AND(data, self )
+            elif op == "OR":            return OR(data, self )
+            elif op == "NOT":           return NOT(data, self )
+            elif op == "INT2CHAR":      return INT2CHAR(data, self )
+            elif op == "STRI2INT":      return STRI2INT(data, self )
+            elif op == "READ":          return READ(data, self )
+            elif op == "WRITE":         return WRITE(data, self )
+            elif op == "CONCAT":        return CONCAT(data, self )
+            elif op == "STRLEN":        return STRLEN(data, self )
+            elif op == "GETCHAR":       return GETCHAR(data, self )
+            elif op == "SETCHAR":       return SETCHAR(data, self )
+            elif op == "TYPE":          return TYPE(data, self )
+            elif op == "JUMP":          return JUMP(data, self )
+            elif op == "JUMPIFEQ":      return JUMPIFEQ (data, self )
+            elif op == "JUMPIFNEQ":     return JUMPIFNEQ (data, self )
+            elif op == "EXIT":          return EXIT (data, self )
+            elif op == "DPRINT":        return DPRINT (data, self )
+            elif op == "BREAK":         return BREAK (data, self )
+        except Exception as e:
+            return Instruction(data, self)
 
 
-# parse args
-xmlfile = None
-stdfile = None
-for ar in sys.argv[1:]:
+    def createFrame(self):
+        """ Vytvoří nový dočasný rámec a zahodí případný obsah původního dočasného rámce. """
+        self.tempVars = dict()
 
-    if ar == "--help":
-        print("""
-./interpreter.py [OPTION]
 
-options:
---version -v    | version
---help -h       | show this help
---source=file   | vstupní soubor s XML reprezentací zdrojového kódu
---input=file    | soubor se vstupy pro samotnou interpretaci zadaného zdrojového kódu
-                |   ( stdin )
-""")
-        exit(0)
+    def pushFrame(self):
+        if self.tempVars != None: 
+            self.stack.insert(0, self.tempVars)
+        else:
+            err("Pokus o přístup k nedefinovanému rámci vede na chybu", 55)
 
-    elif ar[:9] == "--source=":
-        xmlfile = str(ar[9:])
+    def popFrame(self):
+        try:
+            self.tempVars = self.stack.pop(0)
+        except Exception as e:
+            err("Pokus o přístup k nedefinovanému rámci vede na chybu", 55)
     
-    elif ar[:8] == "--input=":
-        stdfile = str(ar[8:])
 
-    else:
-        err(f"unsuported OPTION: {ar}", 69)
+    def __isGlobal(self, var):
+        if re.search("^GF@.*$", var):
+            return True
+        else:
+            return False
 
-if not xmlfile and not stdfile:
-    err(" Alespoň jeden z parametrů (--source nebo --input) musí být vždy zadán. Pokud jeden z nich chybí, jsou chybějící data načítána ze standardního vstupu", 10 )
+    def __isLocal(self, var):
+        if re.search("^LF@.*$", var):
+            return True
+        else:
+            return False
 
-elif not xmlfile:
-    xmlfile = sys.stdin
+    def __isTemp(self, var):
+        if re.search("^TF@.*$", var):
+            return True
+        else:
+            return False
 
-elif not stdfile:
-    xmlfile = sys.stdin
+    def defVar(self, var):
+
+        if self.__isGlobal(var):
+            frame = self.globalVars
+        elif self.__isLocal(var):
+            frame = self.localVars
+        elif self.tempVars != None:
+            frame = self.tempVars
+        else:
+            frame = None
+            err("Pokus o přístup k nedefinovanému rámci vede na chybu", 55)
+
+        if var[3:] in frame:
+            err(f"var {var} does exit", 52)
+
+        frame[var[3:]] = False
+
+    def __len__(self):
+        if len( self.Prog ) == 0: return 0 
+
+        return max( self.Prog )
+
+    def __setitem__(self, var, val):
+
+        var_t  = var
+        var  = var[3:]
+
+        if self.__isGlobal(var_t):
+            if var not in self.globalVars:
+                err(f"{var_t} not a gloval var", 54)
+            self.globalVars[var] = val
+
+        elif self.__isLocal(var_t):
+            if var not in self.localVars:
+                err(f"{var_t} not a local var", 54)
+            self.localVars[var] = val
+
+        elif self.__isTemp(var_t): 
+            if var not in self.tempVars:
+                err(f"{var_t} not a temp var", 54)
+            self.tempVars[var] = val
+        else:
+            err(f"{var_t} not a valid variable var", 31)
+            
+
+    def __getitem__(self, var):
+        var_t  = var
+        var  = var[3:]
+
+        #print (var)
+        ret = None
+
+        if self.__isGlobal(var_t):
+            if var not in self.globalVars:
+                err(f"{var_t} not a gloval var", 56)
+            ret = self.globalVars[var] 
+
+        elif self.__isLocal(var_t):
+            if var not in self.localVars:
+                err(f"{var_t} not a local var", 56)
+            ret = self.localVars[var]
+
+        elif self.__isTemp(var_t): 
+            if var not in self.tempVars:
+                err(f"{var_t} not a temp var", 56)
+            ret = self.tempVars[var]
+
+        else:
+            err(f"var {var_t} is not valid variable", 31)
+        if ret == None:
+            err(f"var {var_t} is not initialized", 56)
+
+        return ret
+
+    def __str__(self):
+
+        def rep(elm, i):
+            return str(i) + ": "+ str(elm[i]) + "\n"
+
+        out = "LINE: " + str(self.Line) + "\n"
+
+        out += "TABLE\n-----------\n"
+        for i in self.globalVars:
+            out += rep(self.globalVars, i)
+        for i in self.localVars:
+            out += rep(self.localVars, i)
+        for i in self.tempVars:
+            out += rep(self.tempVars, i)
+        for stac in self.stack :
+            for i in stac:
+                out += rep(stac, i)
+
+        out += "LABELS\n-------------\n"
+        for i in self.Labels:
+            out+= i + ": " + str(self.Labels[i]) + "\n"
+
+        out += "heap\n-------------------\n"
+        for i in self.ToReturn:
+           out+= str(i) + "\n"
+        out += "-------------------\n"
+
+
+        return out
 
 
 
-xml = ET.parse(xmlfile)
-if not xml: err("no file", 11)
-
-try:
-    table.stdfile = open(stdfile, "r" ) 
-
-except Exception as e:
-    err(f"bad file {stdfile}", 11)
-
-program = xml.getroot()
-if program.tag != "program" :
-    err("root is to be \"<program>\"", 0)
-
-
-order = 0
-maxim = 0
-for data in program :
-    order =  int (data.attrib["order"])
-    table.Line = order
-    if (maxim < order): maxim = order
-
-    if order in table.Prog:
-        err(" unclear order", 1)
-
-    
-    opcode =  data.attrib["opcode"]
-    table.Prog[order] = get(opcode, data)
-
-# check if no numbers are minssing
-if order != len(table.Prog):
-    err("program mised a step")
-
-
-table.Line = 1
-
-i = 0
-while (table.Line <=len(table.Prog)):
-
-    inst = table.Prog[table.Line]
-
-    try:
-
-        inst.run()
-
-    except Exception as e:
-        err(e, 69)
-
-
-    table.Line += 1
-
-table.stdfile.close()
-exit(table.exCode)
-
-
-
-
+main()
 

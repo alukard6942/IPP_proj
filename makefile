@@ -5,10 +5,13 @@ PYTHON=python3
 
 interpreter: interpreter.py
 
-	cat complex.ippcode21 | $(PHP) parse.php | $(PYTHON) interpreter.py --input=./input.txt
+	cat complex.ippcode21 | $(PHP) parse.php | $(PYTHON) interpreter.py --input=input.txt
 
 simple:
-	$(PHP) parse.php < example.ippcode21
+	$(PYTHON) interpreter.py --source=example.xml --input=input.txt
+
+example.xml: complex.ippcode21 parse.php
+	$(PHP) parse.php < ./complex.ippcode21 > example.xml
 
 test1:
 	python3 ./tester.py $(PHP) ./parse.php ./tests
@@ -25,11 +28,13 @@ errrs:
 	$(PHP) parse.php --loc   || true
 	$(PHP) parse.php --stats || true
 	$(PHP) parse.php --jkjl  || true
-	$(PHP) parse.php         || true
+	$(PYTHON) interpreter.py --input=input.txt --source=example.xml || true
+	$(PYTHON) interpreter.py || true
 
 pack1:
 	zip xkoval18.zip ./parse.php ./readme1.md ./Instruction.php ./Stat.php
 
 clean:
-	rm xkoval18.zip
-	rm ./output
+	rm -rf xkoval18.zip
+	rm -rf ./output
+	rm -rf example.xml

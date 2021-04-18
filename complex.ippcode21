@@ -1,4 +1,6 @@
+
 .IPPcode21
+
 DEFVAR GF@counter
 # prazdny retezec
 MOVE GF@counter   string@ # Inicializace proměnné na prázdný řetězec
@@ -35,12 +37,14 @@ WRITE string@a\010
 
 MOVE GF@counter string@
 
+WRITE string@hello_word:\010================\010
 CALL hello_word
-
 
 WRITE string@after\032calling\032hello_word\010
 WRITE GF@counter
 WRITE string@\010
+
+WRITE string@----------------\010
 
 
 
@@ -48,6 +52,7 @@ PUSHS string@
 PUSHS string@hello\032word
 PUSHS int@0
 
+WRITE string@trimo:\010================\010
 call trimo
 
 DEFVAR TF@index
@@ -63,23 +68,54 @@ WRITE string@\010output\010
 WRITE TF@output
 WRITE string@\010
 
+WRITE string@----------------\010
 
-WRITE string@read_example:\010----------------\010
+
+WRITE string@read_example:\010================\010
 CALL READ_EXAMPLE
-WRITE string@----------------\010end_read_example:\010
+WRITE string@----------------\010
+
+WRITE string@reverse:\010================\010
+
+PUSHS string@kobyla\032ma\032maly\032bok
+CALL reverse_from_ord
+WRITE string@\010----------------\010
+
+write string@int2char:\010================\010
+DEFVAR TF@ord
+MOVE TF@ord int@35
+INT2CHAR TF@ord TF@ord
+WRITE TF@ord
+WRITE string@\010----------------\010
+
+write string@type<exml:\010================\010
+PUSHS nil@nil
+CALL type_of
+WRITE string@\010----------------\010
+
+EXIT int@0
+#
+##|===============================================|
+###|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
+###| fc definiciotn                                |
+###|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
+##|===============================================|
+#
 
 
+# type of 
+LABEL type_of 
+PUSHFRAME 
+CREATEFRAME 
+	DEFVAR TF@type
+	POPS TF@type 
 
+	TYPE TF@type TF@type
 
+	WRITE TF@type
 
-EXIT int@49
-
-# ====================
-# ~~~~~~~~~~~~~~~~~~~~
-# | fc definiciotn   |
-# ~~~~~~~~~~~~~~~~~~~~
-# ====================
-
+POPFRAME 
+RETURN
 
 # example function
 LABEL EMPTY_EXAMPLE_FC
@@ -207,11 +243,5 @@ CREATEFRAME
 
 POPFRAME 
 RETURN
-
-
-
-
-
-
 
 
