@@ -3,12 +3,12 @@ PHP=php7.4
 PYTHON=python3
 
 
-interpreter: interpreter.py
+interpret: interpret.py
 
-	cat complex.ippcode21 | $(PHP) parse.php | $(PYTHON) interpreter.py --input=input.txt
+	cat complex.ippcode21 | $(PHP) parse.php | $(PYTHON) interpret.py --input=input.txt
 
 simple:
-	$(PYTHON) interpreter.py --source=example.xml --input=input.txt
+	$(PYTHON) interpret.py --source=example.xml --input=input.txt
 
 example.xml: complex.ippcode21 parse.php
 	$(PHP) parse.php < ./complex.ippcode21 > example.xml
@@ -28,8 +28,8 @@ errrs:
 	$(PHP) parse.php --loc   || true
 	$(PHP) parse.php --stats || true
 	$(PHP) parse.php --jkjl  || true
-	$(PYTHON) interpreter.py --input=input.txt --source=example.xml || true
-	$(PYTHON) interpreter.py || true
+	$(PYTHON) interpret.py --input=input.txt --source=example.xml || true
+	$(PYTHON) interpret.py || true
 
 pack1:
 	zip xkoval18.zip ./parse.php ./readme1.md ./Instruction.php ./Stat.php
