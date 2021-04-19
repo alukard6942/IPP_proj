@@ -581,8 +581,10 @@ class Table:
             elif op == "EXIT":          return EXIT (data, self )
             elif op == "DPRINT":        return DPRINT (data, self )
             elif op == "BREAK":         return BREAK (data, self )
+            else:
+                err(f"unsuported opcode {op}" , 31)
         except Exception as e:
-            return Instruction(data, self)
+            err(f"unsuported opcode {op}" , 31)
 
 
     def createFrame(self):
