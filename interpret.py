@@ -13,29 +13,28 @@ import re
 import logging
 import xml.etree.ElementTree as ET
 
-
 #-- Main function --
 def main():
 
     argumentCount = len(sys.argv)
-    xmlPath = ""
-    inPath = ""
+    xmlPath = sys.stdin
+    inPath = "/dev/stdin"
 
     if argumentCount != 2 and argumentCount != 3:
         Error.print(10, "Invalid number of arguments. Try --help.")    #zero or more than one argument
 
     #-- Print argument "--help" --
     if sys.argv[1] == "--help" or (argumentCount == 3 and sys.argv[2] == "--help"):
-        print("This script is used as an interpret of XML representation of code writtent in OPPcode20.")
+        print("This script is used as an interpret of XML representation of code writtent in OPPcode21.")
         sys.exit(0)
 
     if argumentCount == 2:
         if sys.argv[1][:9] == "--source=":
             xmlPath = sys.argv[1][9:]
-        elif sys.argv[1][:8] == "--input":
+        elif sys.argv[1][:8] == "--input=":
             inPath = sys.argv[1][8:]
         else:
-            Error.print(10, "Invalid argument. Try --help.")    #argument isn't --help --source=<file> or --input=<file>
+            Error.print(10, f"Invalid argument.: {sys.argv[1]} Try --help.")    #argument isn't --help --source=<file> or --input=<file>
 
     elif argumentCount == 3:
         if sys.argv[1][:9] == "--source=" and sys.argv[2][:8] == "--input=":
@@ -46,6 +45,12 @@ def main():
             inPath = sys.argv[1][8:]
         else:
             Error.print(10, "Invalid argument. Try --help.")    #argument isn't --help --source=<file> or --input=<file>
+
+    #-- set global input file ---
+    global InputFile
+
+    InputFile = open(inPath, "r")
+
 
 
     #-- Open source file --
@@ -70,6 +75,7 @@ class Error:
     @staticmethod
     def print(id, message):
         print("ERROR: {0}".format(message), file=sys.stderr)
+        print(f"{Interpret.instOrder}", file=sys.stderr)
         sys.exit(id)
 
 
@@ -89,9 +95,8 @@ class Frames:
         frame = cls.selFrame(name)
         name = name[3:]    #removes prefix GF@ LF@ TF@
         if name in frame:
-            Error.print(52, "Variable is already in the frame")
-        frame[name] = None;
-
+            Error.print(52, f"Variable {name} is already in the frame {frame}")
+        frame[name] = None
 
     @classmethod
     def set(cls, name, value):
@@ -105,7 +110,7 @@ class Frames:
         #-- if variable -> get value --
         if type(value) == var:
             value = value.getValue()
-        frame[name] = value;
+        frame[name] = value
 
 
     @classmethod
@@ -120,7 +125,7 @@ class Frames:
         result = frame[name]
         #-- Is it initialized --
         if type(result) == type(None):
-            Error.print(56, "Variable is not yet initialized")    #value is missing
+            Error.print(56, f"Variable: {name} is not yet initialized {cls.tf}")    #value is missing
 
         return result;
 
@@ -140,6 +145,9 @@ class Frames:
         if frame == None:
             Error.print(55,"Frame is not inicialized yet")    #non existing frame
         return frame
+    
+    def __str__(self):
+        return f"{self.gf}\n{self.lf}\n{self.tf}"
 
 class Stack:
     """Class for stack"""
@@ -149,10 +157,11 @@ class Stack:
 
 
     def pop(self):
-
         if len(self.content) == 0:
             Error.print(56, "Stack is empty")
-        return self.content.pop()
+
+        value =self.content.pop() 
+        return value
 
 
     def push(self, value):
@@ -247,7 +256,6 @@ class label:
 class Interpret():
     """Interpret it self. The skeleton of this program"""
 
-    instNum = 0
     instOrder = 1    #The order of active instruction
     prevInstOrder = 0
     valStack = Stack()    #For POPS and PUSHS
@@ -260,7 +268,7 @@ class Interpret():
             Error.print(32, "Root node <program> not found")
 
         if "language" in root.attrib:
-            if root.attrib["language"].lower() != "ippcode20":
+            if root.attrib["language"].lower() != "ippcode21":
                 Error.print(32, "Wrong lenguage")
             del root.attrib["language"]
         else:
@@ -282,9 +290,8 @@ class Interpret():
 
         #-- Search for all nodes --
         instrNodes = root.findall("*")
-        #-- Number of instructions --
-        instrNodesCount = len(instrNodes)
 
+        toExe = {}
 
         """First find all labels"""
         for node in instrNodes:
@@ -296,44 +303,45 @@ class Interpret():
                 Error.print(32, "Missing order")
             elif not node.attrib["order"].isdigit():
                 Error.print(32, "Atribute order isn't a digit")
-                
+
+            order = int(node.attrib["order"])
+            cls.instOrder = order
+
+            if order in toExe:
+                Error.print(32, "order repeats itself")
+
+            toExe[order] = Instruction(node)
+
             if node.attrib["opcode"].upper() == "LABEL":
-                cls.instOrder = int(node.attrib["order"])
-                Instruction(node).execute()
+                toExe[order].LABEL()
+
+
         cls.instOrder = 1    # Reset instruction counter
+        # get max order
+        maxorder = 0
+        for elem in toExe:
+            if elem > maxorder: maxorder = elem
 
+        node = None
         #-- go threw all instructions from the beginning --
-        while cls.instNum < instrNodesCount:
-            node = instrNodes[cls.instNum]
-            cls.instOrder = int(instrNodes[cls.instNum].attrib["order"])
-            if(cls.prevInstOrder >= cls.instOrder):
-                Error.print(32, "Wrong instruction order.")
+        while cls.instOrder <= maxorder:
 
-            #-- labels are skipped --
-            if not node.attrib["opcode"].upper() == "LABEL":
-                Instruction(node).execute()
+            if cls.instOrder not in toExe:
+                continue
 
-            cls.instNum += 1
-            cls.prevInstOrder = cls.instOrder
+            node = toExe[cls.instOrder]
 
-        # i = 0
-        # cls.instOrder = int(instrNodes[i].attrib["order"])
-        # for node in instrNodes:
-        #     if cls.lastOrder < cls.instOrder:
-        #         if node.attrib["opcode"].upper() != "LABEL":
-        #             Instruction(node).execute()
-        #     else:
-        #         Error.print(32, "Wrong instructions order")
+            #print(node)
 
-        #     i = i+1
-        #     cls.lastOrder = cls.instOrder
-        #     cls.instOrder = int(instrNodes[i].attrib["order"])
+            node.execute()
 
+            cls.instOrder+=1
 
     @staticmethod
     def convertValue(xmlType, xmlValue, retDefault):
         """Converts and checks, if a value is correct and is returned in the correct type"""
         """If the value is not correct and the program should end, retDefault is False, otherwise it returns the default value"""
+
 
         if xmlType == "var":
             if re.search(r"^(LF|TF|GF)@[A-ZÁ-Ža-zá-ž\_\-\$\&\%\*\!\?][A-ZÁ-Ža-zá-ž0-9\_\-\$\&\%\*\!\?]*$", xmlValue):
@@ -376,7 +384,7 @@ class Interpret():
 
         elif xmlType == "nil":
             if xmlValue == "nil":
-                return "nil"
+                return ""
             else:
                 Error.print(32, "Invalid nil value.")    #syntax error
 
@@ -410,8 +418,8 @@ class Instruction():
         #-- Check order --
         if int(node.attrib["order"]) == Interpret.instOrder:
             self.opcode = node.attrib["opcode"].upper()
-            self.args = [];
-            argNum = 1;
+            self.args = []
+            argNum = 1
             for arg in node:
                 if arg.tag[:3] == "arg" and int(arg.tag[3:]) == argNum:
                     self.args.append(Interpret.convertValue(arg.attrib["type"], arg.text, True))
@@ -444,6 +452,7 @@ class Instruction():
                     Error.print(53, "Invalid argument type (expected {0} given {1})".format(expectedArgs[i],argType))    #
             #-- More types --
             elif type(expectedArgs[i]) == list:
+
                 if argType not in expectedArgs[i]:    # Check if used argument has one of expected types
                     Error.print(53, "Invalid argument type (expected {0} given {1})".format(expectedArgs[i],argType))    #
             #-- Wrong method parameters --
@@ -498,7 +507,7 @@ class Instruction():
         elif self.opcode == "READ":
             self.__READ()
         elif self.opcode == "LABEL":
-            self.__LABEL()
+            pass
         elif self.opcode == "JUMP":
             self.__JUMP()
         elif self.opcode == "JUMPIFEQ":
@@ -584,13 +593,19 @@ class Instruction():
     #-- Instrcution PUSHS --
     def __PUSHS(self):
         self.__checkArguments(symb)
-        Interpret.valStack.push(self.args[0])
 
+        val = self.args[0]
+        if type(val) == var:
+            val = val.getValue()
+
+        Interpret.valStack.push(val)
 
     #-- Instrcution POPS --
     def __POPS(self):
         self.__checkArguments(var)
-        self.args[0].setValue(Interpret.valStack.pop())
+        val = Interpret.valStack.pop()
+
+        self.args[0].setValue(val)
 
 
     #-- Instrcution STRLEN --
@@ -610,7 +625,7 @@ class Instruction():
         self.__checkArguments(var, [str, var], [int, var])
         if int(self.args[2]) >= len(str(self.args[1])):
             Error.print(58, "getchar out of reach error")    #string error
-        self.args[0].setValue(string[int(self.args[2])])
+        self.args[0].setValue(str(self.args[1])[int(self.args[2])])
 
 
     #-- Instrcution GETCHAR --
@@ -634,7 +649,9 @@ class Instruction():
         valueType = re.search(r"<class '(str|bool|int)'>", str(type(value))).group(1)
 
         #-- Rename str to string --
-        if valueType == "str":
+        if valueType == "str" and value == "":
+            self.args[0].setValue("nil")
+        elif valueType == "str":
             self.args[0].setValue("string")
         elif valueType == "int":
             self.args[0].setValue("int")
@@ -711,22 +728,26 @@ class Instruction():
 
     #-- Instrcution READ --
     def __READ(self):
+        global InputFile
         self.__checkArguments(var, str)
-        if len(sys.argv) == 2 and sys.argv[1][:8] == "--input=":
-            inPath = sys.argv[1][8:]
-        elif len(sys.argv) == 3 and sys.argv[1][:8] == "--input=":
-            inPath = sys.argv[1][8:]
-        elif len(sys.argv) == 3 and sys.argv[2][:8] == "--input=":
-            inPath = sys.argv[2][8:]
-        else:
-            inPath = "sys.stdin"
-        f = open(inPath)
-        self.args[0].setValue(Interpret.convertValue(self.args[1], f.readline().lower(), False))
 
+        val = InputFile.readline()
+        typ = self.args[1]
 
+        if typ == "string":
+            if val == None: val = ""
+        elif typ == "int":
+            try:
+                val = int(val)
+            except Exception as e:
+                val = "" # nil@nil
+        elif typ == "bool":
+            val = val.lower() == "true"
+
+        self.args[0].setValue(val)
 
     #-- Instrcution LABEL --
-    def __LABEL(self):
+    def LABEL(self):
         self.__checkArguments(label)
         Labels.add(self.args[0])
 
@@ -807,7 +828,11 @@ class Instruction():
         if Frames.lf == None:
             Error.print(55, "Frame is not yet defined")
         Frames.tf = Frames.stack.pop()
-        Frames.lf = None
+
+        if len(Frames.stack) > 0:
+            Frames.lf = Frames.stack[-1]
+        else :
+            Frames.lf = None
 
 
     #-- Instrcution CALL --
@@ -821,7 +846,6 @@ class Instruction():
         self.__checkArguments()
         Interpret.instOrder = Interpret.callStack.pop()
 
-
     #-- Instrcution EXIT --
     def __EXIT(self):
         self.__checkArguments(symb)
@@ -834,6 +858,13 @@ class Instruction():
             exit(value)
         else:
             Error.print(57, "Wrong EXIT value")
+
+    def __str__(self):
+        return (f"pop:{Interpret.callStack.content}" + 
+         f"line: {Interpret.instOrder} {self.opcode}" + 
+         f"stack :: {Interpret.valStack.content}" )
+
+
 
 
 main()
