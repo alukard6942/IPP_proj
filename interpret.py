@@ -529,7 +529,6 @@ class Table:
     MemStack = []
 
     globalVars = dict()
-    localVars = dict()
     tempVars = None
 
     stack = []
@@ -625,9 +624,9 @@ class Table:
 
         if self.__isGlobal(var):
             frame = self.globalVars
-        elif self.__isLocal(var):
-            frame = self.localVars
-        elif self.tempVars != None:
+        elif self.__isLocal(var) and self.tempVars != None:
+            frame = self.stack[-1]
+        elif self.__isTemp(var) and self.tempVars != None:
             frame = self.tempVars
         else:
             frame = None
@@ -654,9 +653,9 @@ class Table:
             self.globalVars[var] = val
 
         elif self.__isLocal(var_t):
-            if var not in self.localVars:
+            if var not in self.stack[-1]:
                 err(f"{var_t} not a local var", 54)
-            self.localVars[var] = val
+            self.stack[-1] = val
 
         elif self.__isTemp(var_t): 
             if var not in self.tempVars:
@@ -679,9 +678,9 @@ class Table:
             ret = self.globalVars[var] 
 
         elif self.__isLocal(var_t):
-            if var not in self.localVars:
+            if var not in self.stack[-1]:
                 err(f"{var_t} not a local var", 56)
-            ret = self.localVars[var]
+            ret = self.stack[-1]
 
         elif self.__isTemp(var_t): 
             if var not in self.tempVars:
@@ -705,8 +704,8 @@ class Table:
         out += "TABLE\n-----------\n"
         for i in self.globalVars:
             out += rep(self.globalVars, i)
-        for i in self.localVars:
-            out += rep(self.localVars, i)
+        for i in self.stack[-1]:
+            out += rep(self.stack[-1], i)
         for i in self.tempVars:
             out += rep(self.tempVars, i)
         for stac in self.stack :
