@@ -17,7 +17,7 @@ $GLOBALS["mode"] = "bouth";
 
 function err($msg, $code){
 	
-	echo ($msg);
+	fwrite(STDERR, "\t$msg\n");
 
 	if ($code != 0){
 		exit($code);
@@ -25,7 +25,26 @@ function err($msg, $code){
 }
 
 function help(){
-	echo ("todo: help\n");
+	echo ("
+--help                  show this help
+--directory=path        testy bude hledat v zadaném adresáři (chybí-li tento parametr, tak skript prochází aktuální adresář);
+--recursive             testy bude hledat nejen v zadaném adresáři, ale i rekurzivně ve všech jeho podadresářích;
+--parse-script=file     soubor se skriptem v PHP 7.4 pro analýzu zdrojového kódu v IPP- code21 (chybí-li tento parametr, tak 
+                        implicitní hodnotou je parse.php uložený v aktuálním adresáři); 13 Za tímto účelem lze vytvářet dočasné
+                        soubory, které však nesmí přepsat žádný jiný existující soubor a potom musí být uklizeny.
+                        Případně můžete tento úklid potlačit podporou parametru --debug za účelem ladění rámce.
+--int-script=file       soubor se skriptem v Python 3.8 pro interpret XML reprezentace kódu v IPPcode21 (chybí-li tento parametr,
+                        tak implicitní hodnotou je interpret.py uložený v aktuálním adresáři);
+--parse-only            bude testován pouze skript pro analýzu zdrojového kódu v IPPcode21 (tento parametr se nesmí kombinovat 
+                        s parametry --int-only a --int-script), výstup s referenčním výstupem (soubor s příponou out) 
+                        porovnávejte nástrojem A7Soft JExamXML (viz [2]);
+--int-only              bude testován pouze skript pro interpret XML reprezentace kódu v IPPcode21 (tento parametr se nesmí 
+                        kombinovat s parametry --parse-only a --parse-script). Vstupní program reprezentován pomocí XML 
+                        bude v souboru s příponou src.
+--jexamxml=file         soubor s JAR balíčkem s nástrojem A7Soft JExamXML. Je-li parametr vynechán uvažuje se implicitní 
+                        umístění /pub/courses/ipp/jexamxml/jexamxml.jar na ser- veru Merlin, kde bude test.php hodnocen.
+--jexamcfg=file         soubor s konfigurací nástroje A7Soft JExamXML. Je-li parametr vynechán uvažuje se implicitní umístění 
+                        /pub/courses/ipp/jexamxml/options na serveru Merlin, kde bude test.php hodnocen.");
 	exit(0);
 }
 
@@ -71,7 +90,8 @@ function main($argc, $argv){
 		}
 
 		else {
-			err("unsuported argm $arg", -1);
+			echo ("usage: php7.4 test.py [options]\n");
+			exit(0);
 		}
 	}
 
@@ -145,11 +165,8 @@ class source_file {
 		}
 		if (file_exists( "$file.rc" )){
 			$code = file_get_contents("$file.rc");
-			if ( ! is_numeric($code) ){
-				err("content of .rc file must be number", -1);
-			}
 
-			$this->expectedCode = 0+$code;
+			$this->expectedCode = (int)$code;
 		}
 		if (file_exists( "$file.out" )){
 			$this->outFile = "$file.out";
@@ -160,7 +177,6 @@ class source_file {
 
 		if ( $this->parserTMP != null ){
 			exec( "rm -rf $this->parserTMP " );
-			exec( "rm -rf $this->parserTMP.log " );
 		}
 		if ( $this->diffTMP != null ){
 			exec( "rm -rf $this->diffTMP " );
@@ -201,10 +217,12 @@ class source_file {
 
 		$name = $this->tmpParse();
 
-		exec("$this->pythonV $interpret --input=$this->input < $this->srcFile  > $name",$lines, $this->exitcode );
+		exec("$this->pythonV $interpret --input=$this->input < $this->srcFile  > $name",$lines, $exitcode );
+
+		$this->exitcode = $exitcode;
 
 		# if err happend there is no need for compring files
-		if ($this->exitcode != 0) {
+		if ($exitcode != 0) {
 			return False;
 		}
 		
@@ -217,7 +235,9 @@ class source_file {
 
 		$name = $this->tmpParse();
 
-		exec("$this->phpV $parser < $this->srcFile | $this->pythonV $interpret --input=$this->input > $name",$lines, $this->exitcode);
+		exec("$this->phpV $parser < $this->srcFile | $this->pythonV $interpret --input=$this->input > $name",$lines, $exitcode);
+
+		$this->exitcode = $exitcode;
 
 		# if err happend there is no need for compring files
 		if ($this->exitcode != 0) {
@@ -229,7 +249,8 @@ class source_file {
 
 	private function normaldiff() {
 		$diff = $this->tmpDiff();
-		exec("diff $this->parserTMP $this->output", $diff, $exitcode);
+
+		exec("diff $this->parserTMP $this->outFile > $diff", $tmp, $exitcode);
 
 		if ($exitcode == 1){
 			return True;
@@ -241,6 +262,7 @@ class source_file {
 	private function cmpToOutFile() {
 		$diff = $this->tmpDiff();
 		exec("java -jar /pub/courses/ipp/jexamxml/jexamxml.jar $this->parserTMP $this->outFile $diff /pub/courses/ipp/jexamxml/options",$tmp, $exitcode);
+		$this->exitcode = $exitcode;
 
 		if ($exitcode == 1){
 			return True;
@@ -271,7 +293,7 @@ class source_file {
 		$filenam = "tmpFilen";
 		$number  = 1;
 
-		if ($this->parseTMP != null ){
+		if ($this->parserTMP != null ){
 			return $this->parserTMP;
 		}
 

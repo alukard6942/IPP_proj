@@ -195,10 +195,8 @@ class Argument:
         val = self.symbol()
 
         if val == "nil@nil": return ""
-
         elif val[:7] == "string@":
             return val[7:]
-
 
     def __lt__(self, to):
         val = self.symbol()
@@ -208,7 +206,7 @@ class Argument:
             b =  int(self) < int(to)
             return b
 
-        elif typ == "string@":
+        elif typ == "string":
             str1 = val.lower()
             str2 = to.symbol().lower()
             for i in range(len(str(val))):
@@ -218,7 +216,7 @@ class Argument:
                     return False
             return False
 
-        elif typ == "bool@":
+        elif typ == "bool":
             return not bool(self) and bool(to)
         else:
             err(f"internal err worng type {typ}", 31)
@@ -428,7 +426,7 @@ class WRITE(Instruction):
         if typ == "int":
             print( str(int(arg)), end="" )
         elif typ == "bool":
-            print( str(bool(arg)), end="" )
+            print( str(bool(arg)).lower(), end="" )
         elif typ == "string":
             print( str(arg), end="" )
         else:
@@ -582,9 +580,9 @@ class Table:
             elif op == "DPRINT":        return DPRINT (data, self )
             elif op == "BREAK":         return BREAK (data, self )
             else:
-                err(f"unsuported opcode {op}" , 31)
+                err(f"unsuported opcode {op}" , 32)
         except Exception as e:
-            err(f"unsuported opcode {op}" , 31)
+            err(f"unsuported opcode {op}" , 32)
 
 
     def createFrame(self):

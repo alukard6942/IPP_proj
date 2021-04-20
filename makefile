@@ -2,8 +2,14 @@
 PHP=php7.4
 PYTHON=python3
 
-test:
-	$(PHP) test.php --directory=./tests/parse-only --parse-only
+test: clean parse inst both
+
+parse:
+	$(PHP) test.php --directory=./tests/parse-only --parse-only > index1.html
+inst:
+	$(PHP) test.php --directory=./tests/int-only/ --int-only > index2.html
+both:
+	$(PHP) test.php --directory=./tests/both/ > index3.html
 
 interpret: interpret.py
 	cat complex.ippcode21 | $(PHP) parse.php | $(PYTHON) interpret.py --input=input.txt
@@ -39,3 +45,6 @@ clean:
 	rm -rf xkoval18.zip
 	rm -rf ./output
 	rm -rf example.xml
+	rm -rf index1.html
+	rm -rf index2.html
+	rm -rf index3.html
