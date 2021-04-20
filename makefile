@@ -2,9 +2,10 @@
 PHP=php7.4
 PYTHON=python3
 
+test:
+	$(PHP) test.php --directory=./tests/parse-only --parse-only
 
 interpret: interpret.py
-
 	cat complex.ippcode21 | $(PHP) parse.php | $(PYTHON) interpret.py --input=input.txt
 
 simple:
