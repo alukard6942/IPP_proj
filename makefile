@@ -12,7 +12,7 @@ both:
 	$(PHP) test.php --directory=./tests/both/ > index3.html
 
 interpret: interpret.py
-	cat complex.ippcode21 | $(PHP) parse.php | $(PYTHON) interpret.py --input=input.txt
+	cat ./tests/both/complex.src | $(PHP) parse.php | $(PYTHON) interpret.py --input=input.txt
 
 simple:
 	$(PYTHON) interpret.py --source=example.xml --input=input.txt
