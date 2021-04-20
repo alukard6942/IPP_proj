@@ -89,7 +89,7 @@ WRITE TF@ord
 WRITE string@\010----------------\010
 
 write string@type<exml:\010================\010
-PUSHS string@a
+PUSHS nil@nil
 CALL type_of
 WRITE string@\010----------------\010
 

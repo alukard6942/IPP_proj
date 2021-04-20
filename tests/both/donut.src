@@ -1,0 +1,15 @@
+.ippcode21
+
+
+# spaceship
+# a picure-esq thing in a array flouting
+
+LABEL INIT
+PUSHFRAME 
+CREATEFRAME 
+DEFVAR TF@SIDE
+POPS TF@SIDE 
+	
+	DEFVaR TF@TMP
+
+	lt TF@TMP TF@SIDE int@100

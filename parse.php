@@ -123,7 +123,7 @@ while($line = fgets(STDIN)){
 	$inst = new Instruction($line);
 	$inst->print_head();
 
-    switch($inst->instruction){ // count of arg_ 
+    switch(strtoupper($inst->instruction)){ // count of arg_ 
 	case "RETURN": case "BREAK":
 		$GLOBALS["jumps"]++;
     case "CREATEFRAME": case "PUSHFRAME": case "POPFRAME":

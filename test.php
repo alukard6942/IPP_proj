@@ -1,351 +1,713 @@
 <?php
 /**
  * File: test.php
- * @author: alukard <alukard6942@github>
- * Date: 18.04.2021;
- * Last Modified Date: 19.04.2021
+ * Autor: Aleš Chudárek
+ * Date: 14.4.2020
+ * Desc: Tests for 1. project IPP
  */
 
-ini_set("display_errors", "stderr");
-# this is a tester 
-# 
-# tests if the output of parse.php and interpret.py are adequte
-$GLOBALS["parse_php"] = "parse.php";
-$GLOBALS["interpret_py"] = "interpret.py";
-$GLOBALS["mode"] = "bouth";
-
-
-function err($msg, $code){
-	
-	fwrite(STDERR, "\t$msg\n");
-
-	if ($code != 0){
-		exit($code);
-	}
+function writeErrorMessage($id, $message = ""){
+    //write default message
+    if ($message == ""){
+        switch ($id) {
+            case 10:
+                fwrite(STDERR, "Wrong combination of parameters! Try --help.\n");
+                break;
+            case 11:
+                fwrite(STDERR, "Can't find test file directory! Try --help.\n");
+                break;
+        }
+    }
+    //write modified message
+    else
+        fwrite(STDERR, $message);
+    exit($id);
 }
 
-function help(){
-	echo ("
---help                  show this help
---directory=path        testy bude hledat v zadaném adresáři (chybí-li tento parametr, tak skript prochází aktuální adresář);
---recursive             testy bude hledat nejen v zadaném adresáři, ale i rekurzivně ve všech jeho podadresářích;
---parse-script=file     soubor se skriptem v PHP 7.4 pro analýzu zdrojového kódu v IPP- code21 (chybí-li tento parametr, tak 
-                        implicitní hodnotou je parse.php uložený v aktuálním adresáři); 13 Za tímto účelem lze vytvářet dočasné
-                        soubory, které však nesmí přepsat žádný jiný existující soubor a potom musí být uklizeny.
-                        Případně můžete tento úklid potlačit podporou parametru --debug za účelem ladění rámce.
---int-script=file       soubor se skriptem v Python 3.8 pro interpret XML reprezentace kódu v IPPcode21 (chybí-li tento parametr,
-                        tak implicitní hodnotou je interpret.py uložený v aktuálním adresáři);
---parse-only            bude testován pouze skript pro analýzu zdrojového kódu v IPPcode21 (tento parametr se nesmí kombinovat 
-                        s parametry --int-only a --int-script), výstup s referenčním výstupem (soubor s příponou out) 
-                        porovnávejte nástrojem A7Soft JExamXML (viz [2]);
---int-only              bude testován pouze skript pro interpret XML reprezentace kódu v IPPcode21 (tento parametr se nesmí 
-                        kombinovat s parametry --parse-only a --parse-script). Vstupní program reprezentován pomocí XML 
-                        bude v souboru s příponou src.
---jexamxml=file         soubor s JAR balíčkem s nástrojem A7Soft JExamXML. Je-li parametr vynechán uvažuje se implicitní 
-                        umístění /pub/courses/ipp/jexamxml/jexamxml.jar na ser- veru Merlin, kde bude test.php hodnocen.
---jexamcfg=file         soubor s konfigurací nástroje A7Soft JExamXML. Je-li parametr vynechán uvažuje se implicitní umístění 
-                        /pub/courses/ipp/jexamxml/options na serveru Merlin, kde bude test.php hodnocen.");
-	exit(0);
+//tests and stores all arguments
+$Arguments = new Arguments();
+$Arguments->checkArguments();
+
+//scans directories for tests
+$DirectoryScanner = new DirectoryScanner();
+$DirectoryScanner->scan($Arguments->directory, $Arguments->recursive);
+
+//temporary file for storing outputs
+$TmpFile = new TemporaryFile();
+$TmpFile->create();
+
+//in every directory that should be searched
+foreach ($DirectoryScanner->directories as $dir)
+{
+    //for every test in a directory
+    foreach ($DirectoryScanner->testFiles[$dir] as $test)
+    {
+        //full paths to tests
+        $srcFile = $dir.$test['name'].'.src';
+        $rcFile = $dir.$test['name'].'.rc';
+        $inFile = $dir.$test['name'].'.in';
+        $outFile = $dir.$test['name'].'.out';
+
+        //names with suffixes
+        $srcFileName = $test['name'] . '.src';
+        $rcFileName = $test['name'] . '.rc';
+        $inFileName = $test['name'] . '.in';
+        $outFileName = $test['name'] . '.out';
+
+        //intOnly argument wasn't used => use parser
+        if(!$Arguments->intOnly) {
+            //empty parseOutput
+            unset($parseOutput);
+            //php7.4 parse.php < file.src
+            exec('php7.4 ' . $Arguments->parseScript . ' < ' . $srcFile, $parseOutput, $parseReturnCode);
+        }
+        //intOnly argument was used => skip parser
+        else
+        {
+            //.src file is stored as parse output
+            $parseOutput = explode("\n", file_get_contents($srcFile));
+            $parseReturnCode = 0;
+        }
+        //parseOnly argument wasn't used => use interpret
+        //if parsReturnCode isn't 0, parser returned error
+        if(!$Arguments->parseOnly and $parseReturnCode == 0)
+        {
+            //TmpFile stores XML text
+            $TmpFile->reset();
+            $TmpFile->writeExecOutput($parseOutput);
+            //empty interpretOutput
+            unset($interpretOutput);
+            //puthon3.8 interpret.py source=file.src/XML --input=file.in
+            exec('python3.8 ' . $Arguments->intScript . ' --source=' . $TmpFile->getPath() . ' --input=' . $inFile, $interpretOutput, $interpretReturnCode);
+            //TmpFile stores interpret output
+            $TmpFile->reset();
+            $TmpFile->writeExecOutput($interpretOutput);
+
+            //compare interpret outputs with .rc
+            if ($interpretReturnCode == file_get_contents($rcFile))
+            {
+                //interpret run successfully => compare output
+                if ($interpretReturnCode == 0)
+                {
+                    //compare interpret outputs with .out
+                    exec('diff ' . $TmpFile->getPath() . ' ' . $outFile, $output, $diffReturnCode);
+                    //output is identical as .out => test success
+                    if ($diffReturnCode == 0)
+                    {
+                        $DirectoryScanner->addTestResult($dir, $test['name'], $Arguments->parseOnly, $Arguments->intOnly, file_get_contents($rcFile), 0, 0, true);
+                    }
+                    //output is different as .out => test fail
+                    else
+                    {
+                        $DirectoryScanner->addTestResult($dir, $test['name'], $Arguments->parseOnly, $Arguments->intOnly, file_get_contents($rcFile), 0, 1, false);
+                    }
+                }
+                //interpret error, but same error as in .rc => test success
+                else
+                {
+                    $DirectoryScanner->addTestResult($dir, $test['name'], $Arguments->parseOnly, $Arguments->intOnly, file_get_contents($rcFile), $interpretReturnCode, -1, true);
+                }
+            }
+            //different returnCode from .rc => test fail
+            else
+            {
+                $DirectoryScanner->addTestResult($dir, $test['name'], $Arguments->parseOnly, $Arguments->intOnly, file_get_contents($rcFile), $interpretReturnCode, -1, false);
+            }
+        }
+        //parseOnly argument was used => skip interpret
+        else if($Arguments->parseOnly)
+        {
+            //TmpFile stores XML text
+            $TmpFile->reset();
+            $TmpFile->writeExecOutput($parseOutput);
+
+            //compare parser outputs with .rc
+            if ($parseReturnCode == file_get_contents($rcFile))
+            {
+                //parser run successfully => compare output
+                if ($parseReturnCode == 0)
+                {
+                    //compare parser outputs with .out
+                    exec("java -jar " . $Arguments->jexamxml . $TmpFile->getPath() . " " . $outFile . " " . str_replace( "jexamxm.jar", "options", $Arguments->jexamxml), $a7SoftReturnCode);
+
+                    //output is identical as .out => test success
+                    if ($a7SoftReturnCode == 0)
+                    {
+                        $DirectoryScanner->addTestResult($dir, $test['name'], $Arguments->parseOnly, $Arguments->intOnly, file_get_contents($rcFile), 0, 0, true);
+                    }
+                    //output is different as .out => test fail
+                    else
+                    {
+                        $DirectoryScanner->addTestResult($dir, $test['name'], $Arguments->parseOnly, $Arguments->intOnly, file_get_contents($rcFile), 0, 1, false);
+                    }
+                }
+                //parser error, but same error as .rc => test success
+                else
+                {
+                    $DirectoryScanner->addTestResult($dir, $test['name'], $Arguments->parseOnly, $Arguments->intOnly, file_get_contents($rcFile), $parseReturnCode, -1, true);
+                }
+            }
+            //different returnCode from .rc => test fail
+            else
+            {
+                $DirectoryScanner->addTestResult($dir, $test['name'], $Arguments->parseOnly, $Arguments->intOnly, file_get_contents($rcFile), $parseReturnCode, -1, false);
+            }
+        }
+        //parseOnly or intOnly argument weren't used and parserReturnCode != 0
+        else
+        {
+            //parserReturnCode is identical as .rc => test success
+            if ($parseReturnCode == file_get_contents($rcFile))
+            {
+                $DirectoryScanner->addTestResult($dir, $test['name'], $Arguments->parseOnly, $Arguments->intOnly, file_get_contents($rcFile), $parseReturnCode, -1, true);
+            }
+            //parserReturnCode is different as .rc => test fail
+            else
+            {
+                $DirectoryScanner->addTestResult($dir, $test['name'], $Arguments->parseOnly, $Arguments->intOnly, file_get_contents($rcFile), $parseReturnCode, -1, false);
+            }
+        }
+    }
 }
+$TmpFile->close();
 
-function scanAllDir($dir, $recursive) {
-	$result = [];
-	foreach(scandir($dir) as $filename) {
-		if ($filename[0] === '.') continue;
-		$filePath = $dir . '/' . $filename;
-		if (is_dir($filePath)) {
-			if ($recursive) {
-		  		foreach (scanAllDir($filePath, $recursive) as $childFilename) {
-		    		$result[] = $filename . '/' . $childFilename;
-				}
-		  	}
-		} else {
-		  	$result[] = $filename;
-		}
-	}
-	return $result;
-}
+//generates HTML representation of results
+$HtmlGenerator = new HtmlGenerator($DirectoryScanner);
+$HtmlGenerator->generate();
 
-function main($argc, $argv){
+class Arguments
+{
+    public $directory;
+    public $recursive;
+    public $parseScript;
+    public $intScript;
+    public $parseOnly;
+    public $intOnly;
+    public $jexamxml;
 
-
-	# parse arguments
-
-	$directory = "./";
-	$recursive = False;
-
-
-	for ($i =1; $i < $argc; $i++){
-		$arg = $argv[$i];
-
-		if ($arg == "--help"){
-			help();
-		}
-		else if (preg_match("/^--directory=.*$/", $arg)){
-			$directory = substr($arg, 12);
-		}
-		else if ($arg == "--recursive"){
-			$recursive = True;
-		}
-		else if (preg_match("/^--parse-script=.*$/", $arg)){
-			$GLOBALS["parse_php"] = substr(15);
-		}
-		else if (preg_match("/^--int-script=.*$/", $arg)){
-			$GLOBALS["interpret_py"] = substr(13);
-		}
-		else if ($arg == "--int-only"){
-			if ($GLOBALS["mode"] != "bouth"){
-				err("tento parametr se nesmí kombinovat s parametry --parse-only a --parse-script)", -1);
-			}
-			$GLOBALS["mode"] = "interpret";
-		}
-		else if ($arg == "--parse-only"){
-			if ($GLOBALS["mode"] != "bouth"){
-				err("tento parametr se nesmí kombinovat s parametry --parse-only a --parse-script)", -1);
-			}
-			$GLOBALS["mode"] = "parse";
-		}
-
-		else {
-			echo ("usage: php7.4 test.py [options]\n");
-			exit(0);
-		}
-	}
-
-
-	$totest = array();
-	if (!is_dir($directory)) {
-        err("Invalid diretory path $directory\n", -1);
+    public function __construct()
+    {
+        //default values
+        $this->directory = getcwd().'/';
+        $this->recursive = false;
+        $this->parseScript = './parse.php';
+        $this->intScript = './interpret.py';
+        $this->parseOnly = false;
+        $this->intOnly = false;
+        $this->jexamxml = './pub/courses/ipp/jexamxml/jexamxml.jar';
     }
 
-    foreach ( scanAllDir($directory, $recursive) as $file) {
-        if ($file !== '.' && $file !== '..' && preg_match("/.src$/", "$file")) {
+    /*
+     * Checks all arguments and saves all data
+     */
+    function checkArguments()
+    {
+        global $argc;
+        $argsUsed = 0;
 
-			$file = substr($file ,0, -4);
+        //all possible arguments
+        $options = getopt(null, ["help", "directory:", "recursive", "parse-script:", "int-script:", "parse-only", "int-only", "jexamxml:"]);
 
-			$totest[] = new source_file( "$directory/$file" );
-		}
+        //if argument --help is used, program ends
+        if (isset($options["help"]))
+        {
+            print("This program test.php tests the functionality of scripts parse.php (converts 
+IPPcode2021 into XML file) and interpret.py (performs XML instructions).
+This script works with these parameters:
+\t--help prints help
+\t--directory=path path to the directory, where all tests are (if missing, looks for test in this directory)
+\t--recursive if this parameter is used, tests are executed in subdirectories also
+\t--parse-script=path path to the parse script (if missing, looks for parse.php in this directory)
+\t--int-script=path path to the interpret script (if missing, looks for interpret.py in this directory)
+\t--parse-only if this parameter is used, only parser is tested (can't be combined with --int-only or --int-script=path)
+\t--int-only if this parameter is used, only interpret is tested (can't be combined with --parse-only or --parse-script=path)
+\t--jexamxml=path path to the directory, with a A7Soft JExamXML tool for comparing XML files");
+            exit(0);
+        }
+        //no arguments
+        if ($argc == 1)
+        {
+            if (!file_exists($this->intScript))
+            {
+                writeErrorMessage(10, "File " . $this->intScript . " does not exist.\n");
+            }
+            if (!file_exists($this->parseScript))
+            {
+                writeErrorMessage(10, "File " . $this->parseScript . " does not exist.\n");
+            }
+            if (!file_exists($this->jexamxml))
+            {
+                writeErrorMessage(10, "File " . $this->jexamxml . " does not exist.\n");
+            }
+            return;
+        }
+        //tests can be run with max 5 arguments
+        else if ($argc >= 2 && $argc <= 6)
+        {
+            if (isset($options["directory"]))
+            {
+                $this->directory = $options['directory'];
+                //checking if the specified path ends with '/'
+                if (substr($this->directory, -1) != '/')
+                    $this->directory = $this->directory."/";
+                $argsUsed++;
+                if (!file_exists($this->directory))
+                    writeErrorMessage(11, "File with tests does not exist.\n");
+            }
+            if (isset($options["recursive"]))
+            {
+                $this->recursive = true;
+                $argsUsed++;
+            }
+            if (isset($options["parse-script"]) and !isset($options["int-only"]))
+            {
+                $this->parseScript = $options["parse-script"];
+                $argsUsed++;
+            }
+            if (isset($options["int-script"]) and !isset($options["parse-only"]))
+            {
+                $this->intScript = $options["int-script"];
+                $argsUsed++;
+            }
+            //argument --int-only
+            if (isset($options["int-only"]) and !isset($options["parse-script"]) and !isset($options["parse-only"]))
+            {
+                $this->intOnly = true;
+                $argsUsed++;
+            }
+            //argument --parse-only
+            if (isset($options["parse-only"]) and !isset($options["int-script"]) and !isset($options["int-script"]))
+            {
+                $this->parseOnly = true;
+                $argsUsed++;
+            }
+
+
+            if (isset($options["jexamxml"]))
+            {
+                $this->jexamxml = $options["jexamxml"];
+                if (!file_exists($this->jexamxml))
+                    writeErrorMessage(10, "File " . $this->jexamxml . " does not exist.\n");
+                //checking if the specified path ends with '/'
+                if (substr($this->jexamxml, -1) != '/')
+                    $this->jexamxml = $this->jexamxml."/";
+                $argsUsed++;
+            }
+
+            //No arguments or additional arguments
+            if ($argsUsed != $argc - 1)
+            {
+                writeErrorMessage(10, "Wrong arguments. Try --help.\n");
+            }
+
+
+            //test if interpret and parser can be opened
+            if (!isset($options["parse-only"]) and !file_exists($this->intScript))
+                writeErrorMessage(10, "File " . $this->intScript . " does not exist.\n");
+            if (!isset($options["int-only"]) and !file_exists($this->parseScript))
+                writeErrorMessage(10, "File " . $this->parseScript . " does not exist.\n");
+        }
+        else
+        {
+            writeErrorMessage(10, "Wrong number of arguments.\n");
+        }
     }
-
-	echo ("<!doctype html>\n".
-			"<html lang=\"cz\">\n".
-			"<head>\n".
-			"\t<meta charset=\"utf-8\">\n".
-			"\t<title>Test summary</title>\n".
-			"</head>\n".
-			"<body>\n");
-	foreach ( $totest as $toprint ) {
-		echo ("\t$toprint\n");
-	}
-	
-	echo ("</body>\n" .
-			"</html>");
 }
 
+/*
+ * DirectoryScanner looks through directory and looks for .src files (tests)
+ */
+class DirectoryScanner
+{
+    //all directories
+    public $directories;
+    //saves all tests
+    public $testFiles;
 
-class source_file {
-	# src file the code itself 
-	private $srcFile = "";
+    public function __construct()
+    {
+        $this->directories = [];
+        $this->testFiles = [];
+    }
 
-	#tmp files
-	# output of parser so we can use xml coperator
-	private $parserTMP = null;
-	# diff of xlm files
-	private $diffTMP = null;
+    /*
+     * Saves paths of .src, .rc, .in, .out files and generates new if missing
+     */
+    public function scan($dir, $recursive)
+    {
+        $Directory = new RecursiveDirectoryIterator($dir);
+        if ($recursive == true)
+            $Iterator = new RecursiveIteratorIterator($Directory);
+        else
+            $Iterator = new IteratorIterator($Directory);
+        $Regex = new RegexIterator($Iterator, '/^.+\.src$/i', RecursiveRegexIterator::GET_MATCH);
+        foreach ($Regex as $reg)
+        {
+            //only name without suffix
+            $fileName = $this->getFileName($reg[0]);
+            //path to directory
+            $dir = $this->getDirectoryPath(realpath($reg[0]));
+            if (!in_array($dir, $this->directories))
+                $this->directories[] = $dir;
 
-	# input for interpret
-	private $input = "/dev/null";
+            //if .src exist, generate rest if missing
+            $this->testFiles[$dir][$fileName]['name'] = $fileName;
+            if (!file_exists($dir.$fileName.'.rc'))
+                $this->genFile($dir, $fileName.'.rc', "0");
+            if (!file_exists($dir.$fileName.'.in'))
+                $this->genFile($dir, $fileName.'.in', "");
+            if (!file_exists($dir.$fileName.'.out'))
+                $this->genFile($dir, $fileName.'.out', "");
+        }
 
-	# expected output 
-	private $outFile;
+        //sorting
+        array_multisort($this->testFiles, SORT_ASC);
+        sort($this->directories);
+    }
 
-	# expected exit code
-	private $expectedCode = 0;
-	private $exitCode;
+    /*
+     * Saves all needed files in testFiles variable
+     * var $dir directory path
+     * var $fileName name of the test without suffix
+     * var $parseOnly bool if --parse-only was used
+     * var $intOnly bool if --int-only was used
+     * var $expValue value from .rc file
+     * var $retValue return value after using parser/interpret
+     * var $sameOut 0 if output is identical to .out, 1 if output is different than .out, -1 if it's not needed to print
+     * var $pass bool true if test is successful, false if failed
+     */
+    public function addTestResult($dir, $fileName, $parseOnly, $intOnly, $expValue, $retValue, $sameOut, $pass)
+    {
+        $this->testFiles[$dir][$fileName]['parseOnly'] = $parseOnly;
+        $this->testFiles[$dir][$fileName]['intOnly'] = $intOnly;
+        $this->testFiles[$dir][$fileName]['expValue'] = $expValue;
+        $this->testFiles[$dir][$fileName]['retValue'] = $retValue;
+        $this->testFiles[$dir][$fileName]['sameOut'] = $sameOut;
+        $this->testFiles[$dir][$fileName]['pass'] = $pass;
+    }
 
-	private $phpV    = "php7.4";
-	private $pythonV = "python3.8";
+    /*
+     * Generates file with content
+     * var $directory path for generated file
+     * var $fileName name of file with suffix
+     * var $content content of generated file
+     */
+    private function genFile($directory, $fileName, $content)
+    {
+        file_put_contents($directory.$fileName, $content);
+    }
 
-	function __construct($file){
-		$this->file = $file;
+    /*
+     * Uses regex and returns the name of a file without suffix from path
+     * var $pathToFile string containing the path of searched file
+     */
+    private function getFileName($pathToFile)
+    {
+        return preg_replace('/^(.*\/)?(.+)\.src$/','\2', $pathToFile);
+    }
 
-		if (file_exists( "$file.src" )){
-			$this->srcFile = "$file.src" ;
-		} 
-		else {
-			err("src file $file not found", -1);
-		}
+    /*
+     * Searches for a file (.src .in .out .rc) and returns the path to the directory, where the file is
+     * var $pathToFile path of the file
+     */
+    private function getDirectoryPath($pathToFile)
+    {
+        return preg_replace('/^(.*\/).+\.(in|out|rc|src)$/','\1', $pathToFile);
+    }
+}
 
-		if (file_exists( "$file.in" )){
-			$this->input = "$file.in";
-		}
-		if (file_exists( "$file.rc" )){
-			$code = file_get_contents("$file.rc");
+/*
+ * Class storing data in a temporary file
+ */
+class TemporaryFile
+{
+    private $file;
 
-			$this->expectedCode = (int)$code;
-		}
-		if (file_exists( "$file.out" )){
-			$this->outFile = "$file.out";
-		}
-	}
+    /*
+     * creates the temporary file
+     */
+    public function create()
+    {
+        $this->file = tmpfile();
+    }
 
-    function __destruct() {
+    /*
+     * closes the temporary file
+     */
+    public function close()
+    {
+        fclose($this->file);
+    }
 
-		if ( $this->parserTMP != null ){
-			exec( "rm -rf $this->parserTMP " );
-		}
-		if ( $this->diffTMP != null ){
-			exec( "rm -rf $this->diffTMP " );
-		}
-	}
+    /*
+     * resets the content of the temporary file
+     */
+    public function reset()
+    {
+        $this->close();
+        $this->create();
+    }
 
-	public function exfrmode(){
-		$op = $GLOBALS["mode"];
+    /*
+     * returns the path to the temporary file
+     */
+    public function getPath()
+    {
+        $metaData = stream_get_meta_data($this->file);
+        return $metaData['uri'];
+    }
 
-		if ($op == "parse"){
-			return $this->parse();
-		}
-		else if ($op == "interpret"){
-			return $this->interpret();
-		}
-		else {
-			return $this->bouth();
-		}
-	}
+    /*
+     * Writes an array of strings in the temporary file
+     * every object on a different line
+     * var $array string array to be written
+     */
+    public function writeExecOutput($array)
+    {
+        fwrite($this->file, implode("\n", $array));
+    }
+}
 
-	public function parse(){
-		$parser = $GLOBALS["parse_php"];
+/*
+ * Class generating html output
+ */
+class HtmlGenerator
+{
+    private $DirectoryScanner;
 
-		$name = $this->tmpParse();
+    /*
+     * init
+     */
+    public function __construct($DirectoryScanner)
+    {
+        $this->DirectoryScanner = $DirectoryScanner;
+    }
 
-		exec("$this->phpV $parser < $this->srcFile > $name ",$tmp, $this->exitcode );
+    /*
+     * Generates HTML and prints it to STDOUT
+     */
+    public function generate()
+    {
 
-		# if err happend there is no need for compring files
-		if ($this->exitcode != 0) {
-			return False;
-		}
+        $html ='<!doctype html>
+        <html lang=\"en\">
+        <head>
+            <meta charset=\"utf-8\">
+            <title>IPPcode21 Tests</title>
+            <meta name=\"Tests summary\">
+            <meta name=\"Aleš Chudárek\">
+            
+            <style>
+                h1 {
+                    text-align: center;
+                    color: black;
+                }
+                #main {
+                    width: 100%;
+                    margin: auto;
+                }
+                tr#summary{
+                    background: #ccff66;
+                    color: black;            
+                }
+                table {
+                    width: 100%;
+                    -webkit-box-shadow: 1px 1px 5px 0px rgba(0,0,0,0.47);
+                    -moz-box-shadow: 1px 1px 5px 0px rgba(0,0,0,0.47);
+                    box-shadow: 1px 1px 5px 0px rgba(0,0,0,0.47);
+                    font-family: Helvetica, Arial, Helvetica, sans-serif;
+                    border-collapse: collapse;
+                }
+                
+                table td, table th {
+                    padding: 8px;
+                }
+                
+                table tbody tr {
+                    //border: 2px solid white;
+                }
+                
+                table tr:nth-child(even){background-color: #ffffe5;}
+                
+                table tr:hover {background-color: #ddd;}
+                
+                table th {
+                    padding-top: 12px;
+                    padding-bottom: 12px;
+                    text-align: left;
+                    background-color: #ffff00;
+                    color: black;
+                    text-align: center;
+                }
+                .dir-heading {
+                    text-align: left;
+                    padding: 5px 15px;    
+                    background-color: #ffff00 !important;  
+                    color: #606060;          
+                }
+                .background-gray{
+                    background: #dcdcd9;
+                }
+                .bool {
+                    color: #000000;
+                }
+                .failed {
+                    color: #e50000;
+                }
+                .passed {
+                    color: #00b500;
+                }
+                .center {
+                    text-align: center;
+                }
+                .left {
+                    text-align: left;
+                }
+                ul li {
+                    display: inline;
+                    float: left;
+                    padding: 0 15px;
+                }
+                ul li div {
+                    float: left;
+                    margin-right: 10px !important;
+                }
+            </style>
+        </head>
 
-		return $this->cmpToOutFile();
-	}
+        <body>
+            <div id="main">
+                <pre class="left">
+                    <font size = "+20">IPPcode21</font>
+                </pre>
+                <table class="center">
+                    <thead>
+                        <tr>
+                            <th>No.</th>
+                            <th>Test name</th>
+                            <th>parse-only</th>
+                            <th>int-only</th>
+                            <th>Exp. value</th>
+                            <th>Real return value</th>
+                            <th>Identical output</th>
+                            <th>Passed</th>
+                        </tr>
+                    </thead>
+                    ';
 
-	public function interpret(){
-		$interpret = $GLOBALS["interpret_py"];
+        //number of all tests tested
+        $allTestCount = 0;
+        //number of all tests tested that passed
+        $allTestPassedCount = 0;
 
-		$name = $this->tmpParse();
+        //far all directories to be searched
+        foreach ($this->DirectoryScanner->directories as $dir) {
+            //number of test in a directory
+            $testDirCount = 0;
+            //number of passed test in a directory
+            $testDirPassedCount = 0;
+            //html text
+            $html = $html . "<tbody>\n";
 
-		exec("$this->pythonV $interpret --input=$this->input < $this->srcFile  > $name",$lines, $exitcode );
+            //for every test in a directory
+            foreach ($this->DirectoryScanner->testFiles[$dir] as $test) {
 
-		$this->exitcode = $exitcode;
+                $html = $html . "<tr>\n";
+                //test number
+                $html = $html . "<td class='center'>" . ($allTestCount + 1) . "</td>\n";
+                //test name
+                $html = $html . "<td class='center'>" . $test['name'] . "</td>\n";
 
-		# if err happend there is no need for compring files
-		if ($exitcode != 0) {
-			return False;
-		}
-		
-		return $this->normaldiff();
-	}
+                //check if parse-only
+                $html = $html . "<td class='bool'>";
+                if ($test['parseOnly'])
+                    $html = $html . "&#10004;</td>\n";
+                else
+                    $html = $html . "&#10007;</td>\n";
 
-	public function bouth(){
-		$parser = $GLOBALS["parse_php"];
-		$interpret = $GLOBALS["interpret_py"];
+                //check if int-only
+                $html = $html . "<td class='bool'>";
+                if ($test['intOnly'])
+                    $html = $html . "&#10004;</td>\n";
+                else
+                    $html = $html . "&#10007;</td>\n";
 
-		$name = $this->tmpParse();
+                //.rc expected value
+                $html = $html . "<td class='center'>" . $test['expValue'] . "</td>\n";
 
-		exec("$this->phpV $parser < $this->srcFile | $this->pythonV $interpret --input=$this->input > $name",$lines, $exitcode);
+                //real return value
+                $html = $html . "<td class='center'>" . $test['retValue'] . "</td>\n";
 
-		$this->exitcode = $exitcode;
+                //comparing output only if .rc and real return value are both 0
+                //print same output true
+                if($test['sameOut'] == 0)
+                {
+                    $html = $html . "<td class='bool'>&#10004;</td>\n";
+                }
+                //print same output false
+                else if($test['sameOut'] == 1)
+                {
+                    $html = $html . "<td class='bool'>&#10007;</td>\n";
+                }
+                //dont print same output
+                else //($test['sameOut'] == -1)
+                {
+                    $html = $html . "<td class='center'></td>\n";
+                }
 
-		# if err happend there is no need for compring files
-		if ($this->exitcode != 0) {
-			return False;
-		}
+                //test passed
+                if($test['pass'])
+                {
+                    $html = $html . "<td class='passed'>&#10004;</td>\n</tr>\n\n";
+                    $testDirPassedCount = $testDirPassedCount +1;
+                    $testDirCount = $testDirCount +1;
+                    $allTestCount = $allTestCount +1;
+                    $allTestPassedCount = $allTestPassedCount +1;
+                }
+                //test failed
+                else
+                {
+                    $html = $html . "<td class='failed'>&#10007;</td>\n</tr>\n\n";
+                    $testDirCount = $testDirCount +1;
+                    $allTestCount = $allTestCount +1;
+                }
+            }
+            //after every directory
+            $html = $html.'
+<tr class="dir-heading">
+    <td colspan="7" class="left">'.$dir.' &#8599;</td>
+    <td class="center">'.$testDirPassedCount.'/'.$testDirCount.'</td>
+</tr>';
+        }
 
-		return $this->normaldiff();
-	}
+        //prints if all is OK or all is fail
+        $allSucFail = "";
+        if($allTestPassedCount == $allTestCount and $allTestPassedCount != 0)
+            $allSucFail = "ALL SUCCEEDED";
+        else if($allTestPassedCount != $allTestCount and $allTestPassedCount == 0)
+            $allSucFail = "ALL FAILED";
 
-	private function normaldiff() {
-		$diff = $this->tmpDiff();
+        //Summary of all tests
+        $html = $html.
+'</tbody>
 
-		exec("diff $this->parserTMP $this->outFile > $diff", $tmp, $exitcode);
+<tr id="summary">
+            <td class="left" colspan="6">Summary</td>
+            <td class="center">' . $allSucFail . '</td>
+            <td class="center">' . $allTestPassedCount . '/' . $allTestCount . '</td>
+        </tr>
+    </tbody>
+</table>
+    <ul>
+        <li class="passed">&#10004; PASSED</li>
+        <li class="failed">&#10007; FAILED</li>
+    </ul>
+</div>
+<script></script>
+</body>
+</html>';
+        //prints html
+        echo $html;
+    }
 
-		if ($exitcode == 1){
-			return True;
-		} else {
-			return False;
-		}
-	}
-
-	private function cmpToOutFile() {
-		$diff = $this->tmpDiff();
-		exec("java -jar /pub/courses/ipp/jexamxml/jexamxml.jar $this->parserTMP $this->outFile $diff /pub/courses/ipp/jexamxml/options",$tmp, $exitcode);
-		$this->exitcode = $exitcode;
-
-		if ($exitcode == 1){
-			return True;
-		} else {
-			return False;
-		}
-	}
-
-	private function tmpDiff() {
-		$filenam = "tmpDiffn";
-		$number  = 1;
-
-		if ($this->diffTMP != null ){
-			return $outFile;
-		}
-
-		for (; $number < 100 ;$number++){
-			$name = "$filenam$number.tmp";
-			if ( ! file_exists("$name")) {
-				$this->diffTMP = $name;
-				return $name;
-			}
-		}
-		err("interner err: unenable to create tmpfile", -1);
-	}
-
-	private function tmpParse() {
-		$filenam = "tmpFilen";
-		$number  = 1;
-
-		if ($this->parserTMP != null ){
-			return $this->parserTMP;
-		}
-
-		for (; $number < 100 ;$number++){
-			$name = "$filenam$number.tmp";
-			if ( ! file_exists("$name")) {
-				$this->parserTMP = "$name";
-				return "$name";
-			}
-		}
-		err("interner err: unenable to create tmpfile", -1);
-	}
-
-	public function __toString ( ) {
-
-		$res = $this->exfrmode();
-
-		# if didnt compiled corectly just ceck if we used the right code
-		if (!$res) {
-			if ($this->exitcode == $this->expectedCode){
-				return "<p> <h2> $this->file:</h2> <b> OK </b></p>";
-			} else {
-				return "<p> <h2> $this->file:</h2> <b> WRONG CODE</b> \n" .
-					"\t\treturned $this->exitcode\n\t\texpected $this->expectedCode</p>";
-			}
-
-
-		}
-
-		$diff = htmlspecialchars(file_get_contents("$this->diffTMP"), ENT_QUOTES);;
-
-		return "<p> <h2> $this->file:</h2> <b> WRONG OUTPUT</b>\n\t\tdiff:</p>\n" .
-				"\t\t<pre>$diff</pre>";
-	}
-};
-
-main($argc, $argv)
-
-?>
+}

@@ -73,10 +73,10 @@ def main():
 class Error:
     """Error hendler, prints message and ends the program"""
     @staticmethod
-    def print(id, message):
+    def print(code, message):
         print("ERROR: {0}".format(message), file=sys.stderr)
         print(f"{Interpret.instOrder}", file=sys.stderr)
-        sys.exit(id)
+        exit(code)
 
 
 class Frames:
@@ -327,6 +327,7 @@ class Interpret():
         while cls.instOrder <= maxorder:
 
             if cls.instOrder not in toExe:
+                cls.instOrder+=1
                 continue
 
             node = toExe[cls.instOrder]

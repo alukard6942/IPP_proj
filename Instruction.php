@@ -70,6 +70,8 @@ class Instruction {
 	public function print_var(){
 
 		$argum = $this->arg();
+	    $argum = explode("@", $argum);
+	    $argum = strtoupper($argum[0]) . "@" . $argum[1];
 
 		if (!preg_match("/^[LTG]F@[\-\%\?\*\!\&a-zA-Z_$][\-\%\?\*\!\&a-zA-Z_$0-9]*$/", $argum)){
 			print_e("variable name $argum not allowed", 23);
@@ -80,7 +82,7 @@ class Instruction {
 	// can mean symbol or var
 	public function print_symb(){
 		$argum = $this->arg();
-	    $type = explode("@", $argum)[0];
+	    $type = strtoupper(explode("@", $argum)[0]);
 
 		// symb in [] // var
 		foreach(array("LF", "TF", "GF") as &$value){
@@ -93,7 +95,7 @@ class Instruction {
 		$argum = substr($argum, strlen($type)+1);
 		// symb in [] // symb
 
-		switch ($type){
+		switch (strtolower($type)){
 		case "string":
 			$argum = $this->stringcheck($argum);
 			break;

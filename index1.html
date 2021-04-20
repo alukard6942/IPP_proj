@@ -1,21 +1,170 @@
 <!doctype html>
-<html lang="cz">
-<head>
-	<meta charset="utf-8">
-	<title>Test summary</title>
-</head>
-<body>
-	<p> <h2> ./tests/parse-only/intecionly_wrong:</h2> <b> WRONG OUTPUT</b>
-		diff:</p>
-		<pre></pre>
-	<p> <h2> ./tests/parse-only/read_test:</h2> <b> WRONG OUTPUT</b>
-		diff:</p>
-		<pre></pre>
-	<p> <h2> ./tests/parse-only/simple_tag:</h2> <b> WRONG OUTPUT</b>
-		diff:</p>
-		<pre></pre>
-	<p> <h2> ./tests/parse-only/write_test:</h2> <b> WRONG OUTPUT</b>
-		diff:</p>
-		<pre></pre>
+        <html lang=\"en\">
+        <head>
+            <meta charset=\"utf-8\">
+            <title>IPPcode21 Tests</title>
+            <meta name=\"Tests summary\">
+            <meta name=\"Aleš Chudárek\">
+            
+            <style>
+                h1 {
+                    text-align: center;
+                    color: black;
+                }
+                #main {
+                    width: 100%;
+                    margin: auto;
+                }
+                tr#summary{
+                    background: #ccff66;
+                    color: black;            
+                }
+                table {
+                    width: 100%;
+                    -webkit-box-shadow: 1px 1px 5px 0px rgba(0,0,0,0.47);
+                    -moz-box-shadow: 1px 1px 5px 0px rgba(0,0,0,0.47);
+                    box-shadow: 1px 1px 5px 0px rgba(0,0,0,0.47);
+                    font-family: Helvetica, Arial, Helvetica, sans-serif;
+                    border-collapse: collapse;
+                }
+                
+                table td, table th {
+                    padding: 8px;
+                }
+                
+                table tbody tr {
+                    //border: 2px solid white;
+                }
+                
+                table tr:nth-child(even){background-color: #ffffe5;}
+                
+                table tr:hover {background-color: #ddd;}
+                
+                table th {
+                    padding-top: 12px;
+                    padding-bottom: 12px;
+                    text-align: left;
+                    background-color: #ffff00;
+                    color: black;
+                    text-align: center;
+                }
+                .dir-heading {
+                    text-align: left;
+                    padding: 5px 15px;    
+                    background-color: #ffff00 !important;  
+                    color: #606060;          
+                }
+                .background-gray{
+                    background: #dcdcd9;
+                }
+                .bool {
+                    color: #000000;
+                }
+                .failed {
+                    color: #e50000;
+                }
+                .passed {
+                    color: #00b500;
+                }
+                .center {
+                    text-align: center;
+                }
+                .left {
+                    text-align: left;
+                }
+                ul li {
+                    display: inline;
+                    float: left;
+                    padding: 0 15px;
+                }
+                ul li div {
+                    float: left;
+                    margin-right: 10px !important;
+                }
+            </style>
+        </head>
+
+        <body>
+            <div id="main">
+                <pre class="left">
+                    <font size = "+20">IPPcode21</font>
+                </pre>
+                <table class="center">
+                    <thead>
+                        <tr>
+                            <th>No.</th>
+                            <th>Test name</th>
+                            <th>parse-only</th>
+                            <th>int-only</th>
+                            <th>Exp. value</th>
+                            <th>Real return value</th>
+                            <th>Identical output</th>
+                            <th>Passed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+<tr>
+<td class='center'>1</td>
+<td class='center'>write_test</td>
+<td class='bool'>&#10004;</td>
+<td class='bool'>&#10007;</td>
+<td class='center'>0</td>
+<td class='center'>0</td>
+<td class='bool'>&#10007;</td>
+<td class='failed'>&#10007;</td>
+</tr>
+
+<tr>
+<td class='center'>2</td>
+<td class='center'>read_test</td>
+<td class='bool'>&#10004;</td>
+<td class='bool'>&#10007;</td>
+<td class='center'>0</td>
+<td class='center'>0</td>
+<td class='bool'>&#10007;</td>
+<td class='failed'>&#10007;</td>
+</tr>
+
+<tr>
+<td class='center'>3</td>
+<td class='center'>intecionly_wrong</td>
+<td class='bool'>&#10004;</td>
+<td class='bool'>&#10007;</td>
+<td class='center'>0</td>
+<td class='center'>0</td>
+<td class='bool'>&#10007;</td>
+<td class='failed'>&#10007;</td>
+</tr>
+
+<tr>
+<td class='center'>4</td>
+<td class='center'>simple_tag</td>
+<td class='bool'>&#10004;</td>
+<td class='bool'>&#10007;</td>
+<td class='center'>0</td>
+<td class='center'>0</td>
+<td class='bool'>&#10007;</td>
+<td class='failed'>&#10007;</td>
+</tr>
+
+
+<tr class="dir-heading">
+    <td colspan="7" class="left">/home/alukard/Fit/IPP/chuda/tests/parse-only/ &#8599;</td>
+    <td class="center">0/4</td>
+</tr></tbody>
+
+<tr id="summary">
+            <td class="left" colspan="6">Summary</td>
+            <td class="center">ALL FAILED</td>
+            <td class="center">0/4</td>
+        </tr>
+    </tbody>
+</table>
+    <ul>
+        <li class="passed">&#10004; PASSED</li>
+        <li class="failed">&#10007; FAILED</li>
+    </ul>
+</div>
+<script></script>
 </body>
 </html>

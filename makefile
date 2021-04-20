@@ -44,8 +44,12 @@ pack1:
 pack:
 	zip xkoval18.zip ./parse.php ./readme1.md ./Instruction.php ./Stat.php ./readme2.md ./test.php ./interpret.py 
 
+chuda:
+	zip xchuda04.zip ./test.php ./interpret.py 
+
 clean:
 	rm -rf xkoval18.zip
+	rm -rf xchuda04.zip 
 	rm -rf ./output
 	rm -rf example.xml
 	rm -rf index1.html
