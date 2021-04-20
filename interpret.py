@@ -70,7 +70,7 @@ def main():
     try:
         xml = ET.parse(xmlfile)
     except Exception as e:
-        err(f"xml file {xmlfile} failed to parse", 31)
+        err(f"xml file {xmlfile} failed to parse", 32)
     
     program = None
     try:
@@ -79,9 +79,9 @@ def main():
     
         program = xml.getroot()
         if program.tag != "program" :
-            err("root is to be \"<program>\"", 31)
+            err("root is to be \"<program>\"", 32)
         if program.attrib["language"].lower() != "ippcode21" :
-            err("language is supose to be ippcode21", 31)
+            err("language is supose to be ippcode21", 32)
 
     except Exception as e:
         err(f"bad file {stdfile}", 11)
@@ -95,7 +95,7 @@ def main():
         if (maxim < order): maxim = order
     
         if order in table.Prog:
-            err(" unclear order", 31)
+            err(" unclear order", 32)
     
         
         opcode =  data.attrib["opcode"]
@@ -135,7 +135,7 @@ class Argument:
 
     def var(self):
         if self.typ != "var":
-            err(f"internal err err supose to be var instad {self.type}", 31)
+            err(f"internal err err supose to be var instad {self.type}", 32)
 
         return self.text
 
@@ -219,7 +219,7 @@ class Argument:
         elif typ == "bool":
             return not bool(self) and bool(to)
         else:
-            err(f"internal err worng type {typ}", 31)
+            err(f"internal err worng type {typ}", 32)
 
     def __eq__(self, to):
         return str(self.symbol()) == str(to.symbol())
@@ -258,7 +258,7 @@ class Instruction:
         argn = len(self.data)
         armax = max(self.__argumentrec)
         if argn != armax:
-            err(f" {self.opcode}: namber of arguments given {armax} is wrong", 31)
+            err(f" {self.opcode}: namber of arguments given {armax} is wrong", 32)
 
     def exe(self):
         print(f"todo .exe() for {self.opcode}")
@@ -430,7 +430,7 @@ class WRITE(Instruction):
         elif typ == "string":
             print( str(arg), end="" )
         else:
-            err(f"unsuported type: {typ}", 31)
+            err(f"unsuported type: {typ}", 32)
         
 class CONCAT(Instruction):
     """ Do proměnné ⟨var⟩ uloží řetězec vzniklý konkatenací dvou řetězcových operandů ⟨symb 1 ⟩ a ⟨symb 2 ⟩ (jiné typy nejsou povoleny). """
@@ -538,7 +538,7 @@ class Table:
 
     def append(self, order, op, data):
         if order in self.Prog: 
-            err("unclear order of instructions", 31)
+            err("unclear order of instructions", 32)
         self.Prog[order] = self.__get(op, data)
 
     # fuckn helll this shit is so not optimal it hurts
@@ -663,7 +663,7 @@ class Table:
                 err(f"{var_t} not a temp var", 54)
             self.tempVars[var] = val
         else:
-            err(f"{var_t} not a valid variable var", 31)
+            err(f"{var_t} not a valid variable var", 32)
             
 
     def __getitem__(self, var):
@@ -689,7 +689,7 @@ class Table:
             ret = self.tempVars[var]
 
         else:
-            err(f"var {var_t} is not valid variable", 31)
+            err(f"var {var_t} is not valid variable", 32)
         if ret == None:
             err(f"var {var_t} is not initialized", 56)
 

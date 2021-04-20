@@ -41,6 +41,9 @@ errrs:
 pack1:
 	zip xkoval18.zip ./parse.php ./readme1.md ./Instruction.php ./Stat.php
 
+pack:
+	zip xkoval18.zip ./parse.php ./readme1.md ./Instruction.php ./Stat.php ./readme2.md ./test.php ./interpret.py 
+
 clean:
 	rm -rf xkoval18.zip
 	rm -rf ./output

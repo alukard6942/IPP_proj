@@ -48,6 +48,23 @@ function help(){
 	exit(0);
 }
 
+function scanAllDir($dir, $recursive) {
+	$result = [];
+	foreach(scandir($dir) as $filename) {
+		if ($filename[0] === '.') continue;
+		$filePath = $dir . '/' . $filename;
+		if (is_dir($filePath)) {
+			if ($recursive) {
+		  		foreach (scanAllDir($filePath, $recursive) as $childFilename) {
+		    		$result[] = $filename . '/' . $childFilename;
+				}
+		  	}
+		} else {
+		  	$result[] = $filename;
+		}
+	}
+	return $result;
+}
 
 function main($argc, $argv){
 
@@ -101,8 +118,7 @@ function main($argc, $argv){
         err("Invalid diretory path $directory\n", -1);
     }
 
-    $files = array();
-    foreach (scandir($directory) as $file) {
+    foreach ( scanAllDir($directory, $recursive) as $file) {
         if ($file !== '.' && $file !== '..' && preg_match("/.src$/", "$file")) {
 
 			$file = substr($file ,0, -4);
@@ -323,10 +339,10 @@ class source_file {
 
 		}
 
-		$diff = file_get_contents("$this->diffTMP");
+		$diff = htmlspecialchars(file_get_contents("$this->diffTMP"), ENT_QUOTES);;
 
-		return "<p> <h2> $this->file:</h2> <b> WRONG OUTPUT</b>\n\t\tdiff:\n" .
-				"\t\t$diff </p>";
+		return "<p> <h2> $this->file:</h2> <b> WRONG OUTPUT</b>\n\t\tdiff:</p>\n" .
+				"\t\t<pre>$diff</pre>";
 	}
 };
 
