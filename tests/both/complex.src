@@ -3,12 +3,12 @@
 
 DEFVAR GF@counter
 # prazdny retezec
-MOVE GF@counter   string@ # Inicializace proměnné na prázdný řetězec
+Move GF@counter   string@ # Inicializace proměnné na prázdný řetězec
 # Jednoduchá iterace , dokud nebude splněna zadaná podmínka
 
 CREATEFRAME 
 
-DEFVAR TF@cunt
+defvar TF@cunt
 
 MOVE TF@cunt string@hello
 
@@ -93,6 +93,11 @@ PUSHS nil@nil
 CALL type_of
 WRITE string@\010----------------\010
 
+write string@lowercasafc\010================\010
+PUSHS string@type<exml:
+CALL lowercasafc
+WRITE string@\010----------------\010
+
 EXIT int@0
 #
 ##|===============================================|
@@ -101,6 +106,15 @@ EXIT int@0
 ###|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
 ##|===============================================|
 #
+
+label lowercasafc
+pushFrame
+createFrame
+	defvar tf@to_print
+	pops tf@to_print 
+	write tf@to_print
+popFrame
+return
 
 
 # type of 

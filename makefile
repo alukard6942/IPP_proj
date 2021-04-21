@@ -1,3 +1,7 @@
+# File: makefile
+# Author: xkoval18 <xkoval18@github>
+# Date: 21.04.2021
+# Last Modified Date: 21.04.2021
 
 PHP=php7.4
 PYTHON=python3
@@ -11,8 +15,8 @@ inst:
 both:
 	$(PHP) test.php --directory=./tests/both/ > index3.html
 
-interpret: interpret.py
-	cat complex.ippcode21 | $(PHP) parse.php | $(PYTHON) interpret.py --input=input.txt
+interpret: 
+	cat ./tests/both/complex.src complex.ippcode21 | $(PHP) parse.php | $(PYTHON) interpret.py --input=/dev/null
 
 simple:
 	$(PYTHON) interpret.py --source=example.xml --input=input.txt

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# File: interpreter.py
-# Author: alukard <alukard6942@github>
-# Date: 13.04.2021
-# Last Modified Date: 18.04.2021
+# File: interpret.py
+# Author: xkoval18 <xkoval18@github>
+# Date: 21.04.2021
+# Last Modified Date: 21.04.2021
 
 import xml.etree.ElementTree as ET
 import re
@@ -65,7 +65,6 @@ def main():
     
     elif not stdfile:
         xmlfile = sys.stdin
-    
     
     try:
         xml = ET.parse(xmlfile)

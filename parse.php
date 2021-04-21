@@ -1,9 +1,11 @@
 <?php
 /**
- * File: parser.php
- * @author: alukard <alukard@github>
+ * File: parse.php
+ * @author: xkoval18 <xkoval18@github>
  * Date: 24.02.2021
+ * Last Modified Date: 21.04.2021
  */
+
 ini_set("display_errors", "stderr");
 
 $GLOBALS["stats"]    = array();

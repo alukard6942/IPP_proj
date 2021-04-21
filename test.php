@@ -1,9 +1,9 @@
 <?php
 /**
  * File: test.php
- * @author: alukard <alukard6942@github>
+ * @author: xkoval18 <xkoval18@github>
  * Date: 18.04.2021;
- * Last Modified Date: 19.04.2021
+ * Last Modified Date: 21.04.2021
  */
 
 ini_set("display_errors", "stderr");
@@ -13,6 +13,10 @@ ini_set("display_errors", "stderr");
 $GLOBALS["parse_php"] = "parse.php";
 $GLOBALS["interpret_py"] = "interpret.py";
 $GLOBALS["mode"] = "bouth";
+
+$GLOBALS["total_count"] = 0;
+$GLOBALS["right_count"] = 0;
+$GLOBALS["not_diff"] = true;
 
 
 function err($msg, $code){
@@ -128,22 +132,45 @@ function main($argc, $argv){
     }
 
 	echo ("<!doctype html>\n".
-			"<html lang=\"cz\">\n".
-			"<head>\n".
-			"\t<meta charset=\"utf-8\">\n".
-			"\t<title>Test summary</title>\n".
-			"</head>\n".
-			"<body>\n");
+	"<html lang=\"cz\">\n".
+	"<head>\n".
+
+	" 	<meta charset=\"utf-8\">\n".
+	" 	<title>Test summary</title>\n".
+
+	"</head>\n".
+
+	"<body>\n");
 	foreach ( $totest as $toprint ) {
 		echo ("\t$toprint\n");
 	}
-	
+	# totoal cunt
+	$total = $GLOBALS["total_count"];
+	$right = $GLOBALS["right_count"];
+	$ntdiff  = $GLOBALS["not_diff"];
+
+	if ( $total == $right ){
+		echo ("<h2 style=\"color:green\" > All $total tests passed </h2>");
+	}
+	else if ($ntdiff) {
+		echo ("<h2 style=\"color:orange\" > $right / $total tests passed </h2>");
+	}
+	else{
+		echo ("<h2 style=\"color:red\" > $right / $total tests passed </h2>");
+	}
+
 	echo ("</body>\n" .
-			"</html>");
+
+	"</html>");
 }
 
 
 class source_file {
+
+	# cunters
+	private $total_count = 0;
+	private $right_count = 0;
+
 	# src file the code itself 
 	private $srcFile = "";
 
@@ -266,7 +293,7 @@ class source_file {
 	private function normaldiff() {
 		$diff = $this->tmpDiff();
 
-		exec("diff $this->parserTMP $this->outFile > $diff", $tmp, $exitcode);
+		exec("diff -- $this->parserTMP $this->outFile > $diff", $tmp, $exitcode);
 
 		if ($exitcode == 1){
 			return True;
@@ -327,21 +354,24 @@ class source_file {
 
 		$res = $this->exfrmode();
 
+		$GLOBALS["total_count"] += 1;
+
 		# if didnt compiled corectly just ceck if we used the right code
 		if (!$res) {
 			if ($this->exitcode == $this->expectedCode){
-				return "<p> <h2> $this->file:</h2> <b> OK </b></p>";
+				$GLOBALS["right_count"] += 1;
+				return "<h3> $this->file: <b style=\"color:green\"> OK </b></h3>";
 			} else {
-				return "<p> <h2> $this->file:</h2> <b> WRONG CODE</b> \n" .
+				return "<h3> $this->file: <b style=\"color:orange\"> WRONG CODE</b></h3> \n" .
 					"\t\treturned $this->exitcode\n\t\texpected $this->expectedCode</p>";
 			}
-
-
 		}
 
 		$diff = htmlspecialchars(file_get_contents("$this->diffTMP"), ENT_QUOTES);;
+		
+		$GLOBALS["not_diff"] = false;
 
-		return "<p> <h2> $this->file:</h2> <b> WRONG OUTPUT</b>\n\t\tdiff:</p>\n" .
+		return "<p> <h3> $this->file: <b style=\"color:red\"> WRONG OUTPUT</b></h3> \n\t\tdiff:</p>\n" .
 				"\t\t<pre>$diff</pre>";
 	}
 };

@@ -1,15 +1,15 @@
 ```
  File: readme2.md
- Author: alukard <alukard6942@github>
- Date: 20.04.2021
+ Author: xkoval18 <xkoval18@github>
+ Date: 21.04.2021
+ Last Modified Date: 21.04.2021
 ```
 
 # interpret.py
 > aplikace v python3 pro interpretaci codu IPPcode21 v jeho xml reprezentaci 
 
 # Pouziti
-> kazda nova moznost musi myt definovany soubor kam se ma vypsat pomoci --stats=FILE,
-> soubory se nesmi opakovat
+> otestuje interpret a parser nad testy z testoveho adresare
 
 	python3 interpreter.py [OPTION]
 

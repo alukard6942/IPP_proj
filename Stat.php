@@ -1,8 +1,9 @@
 <?php
 /**
  * File: Stat.php
- * @author: alukard <alukard@github>
+ * @author: xkoval18 <xkoval18@github>
  * Date: 16.03.2021
+ * Last Modified Date: 21.04.2021
  */
 
 // opttions for 

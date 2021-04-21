@@ -1,8 +1,9 @@
 <?php
 /**
  * File: Instruction.php
- * @author: alukard <alukard@github>
+ * @author: xkoval18 <xkoval18@github>
  * Date: 16.03.2021
+ * Last Modified Date: 21.04.2021
  */
 
 class Instruction {
@@ -70,6 +71,8 @@ class Instruction {
 	public function print_var(){
 
 		$argum = $this->arg();
+		$argum[0] = strtoupper($argum[0]);
+		$argum[1] = strtoupper($argum[1]);
 
 		if (!preg_match("/^[LTG]F@[\-\%\?\*\!\&a-zA-Z_$][\-\%\?\*\!\&a-zA-Z_$0-9]*$/", $argum)){
 			print_e("variable name $argum not allowed", 23);
@@ -84,7 +87,7 @@ class Instruction {
 
 		// symb in [] // var
 		foreach(array("LF", "TF", "GF") as &$value){
-			if ($type != $value) continue;
+			if (strtoupper($type) != $value) continue;
 
 			$this->print_var();
 			return;
