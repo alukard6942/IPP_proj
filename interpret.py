@@ -60,21 +60,22 @@ def main():
     if not xmlfile and not stdfile:
         err(" Alespoň jeden z parametrů (--source nebo --input) musí být vždy zadán. Pokud jeden z nich chybí, jsou chybějící data načítána ze standardního vstupu", 10 )
     
-    elif not xmlfile:
-        xmlfile = sys.stdin
-    
-    elif not stdfile:
-        xmlfile = sys.stdin
     
     try:
-        xml = ET.parse(xmlfile)
+        if not xmlfile:
+            xml = ET.parse(sys.stdin)
+        else:
+            xml = ET.parse(xmlfile)
+
     except Exception as e:
         err(f"xml file {xmlfile} failed to parse", 32)
     
     program = None
     try:
-        table.stdfile = open(stdfile, "r" ) 
-    
+        if not stdfile:
+            table.stdfile = sys.stdin    
+        else:
+            table.stdfile = open(str(stdfile), "r" ) 
     
         program = xml.getroot()
         if program.tag != "program" :
